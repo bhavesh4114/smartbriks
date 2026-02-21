@@ -1,9 +1,13 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
 import { BuilderLayout } from "../../components/layout/BuilderLayout";
 import { StatCard } from "../../components/shared/StatCard";
-import { FolderKanban, Users, DollarSign, TrendingUp } from "lucide-react";
+import { FolderKanban, Users, DollarSign, TrendingUp, TriangleAlert } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
+import { Button } from "../../components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "../../components/ui/alert";
+import { getBuilderKycStatus, type BuilderKycStatus } from "../../config/builderKyc";
 import {
   PieChart,
   Pie,
@@ -34,9 +38,47 @@ const fundingData = [
 ];
 
 export default function BuilderDashboard() {
+  const navigate = useNavigate();
+  const [kycStatus, setKycStatus] = useState<BuilderKycStatus>(() => getBuilderKycStatus());
+
+  useEffect(() => {
+    const syncKycStatus = () => setKycStatus(getBuilderKycStatus());
+    syncKycStatus();
+
+    window.addEventListener("focus", syncKycStatus);
+    window.addEventListener("storage", syncKycStatus);
+
+    return () => {
+      window.removeEventListener("focus", syncKycStatus);
+      window.removeEventListener("storage", syncKycStatus);
+    };
+  }, []);
+
+  const isKycApproved = kycStatus === "approved";
+  const isBuilderRestricted = !isKycApproved;
+
   return (
     <BuilderLayout>
       <div className="min-w-0 space-y-6 sm:space-y-8">
+        {isBuilderRestricted && (
+          <Alert className="border-amber-300 bg-amber-50 text-amber-900">
+            <TriangleAlert className="h-4 w-4" aria-hidden />
+            <AlertTitle>KYC Required</AlertTitle>
+            <AlertDescription className="w-full text-amber-800">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p>Complete your KYC to unlock full builder features.</p>
+                <Button
+                  type="button"
+                  onClick={() => navigate("/builder/kyc")}
+                  className="rounded-lg bg-amber-600 text-white hover:bg-amber-700"
+                >
+                  Complete KYC
+                </Button>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+
         <div className="min-w-0">
           <h1 className="break-words text-2xl font-semibold text-[#111827] sm:text-3xl">Welcome back, Elite Constructions!</h1>
           <p className="mt-1 text-[#6B7280]">Here's your project overview</p>
@@ -54,20 +96,20 @@ export default function BuilderDashboard() {
           />
           <StatCard
             title="Total Investors"
-            value="142"
+            value={isBuilderRestricted ? "Locked until KYC approval" : "142"}
             icon={Users}
             iconBg="bg-green-50"
             iconTextColor="text-[#16A34A]"
-            trend={{ value: "+12", isPositive: true }}
+            trend={isBuilderRestricted ? undefined : { value: "+12", isPositive: true }}
             className="bg-white border border-[#E5E7EB] rounded-2xl shadow-sm"
           />
           <StatCard
             title="Funds Raised"
-            value="$2.4M"
+            value={isBuilderRestricted ? "Locked until KYC approval" : "$2.4M"}
             icon={DollarSign}
             iconBg="bg-orange-50"
             iconTextColor="text-orange-600"
-            trend={{ value: "+18%", isPositive: true }}
+            trend={isBuilderRestricted ? undefined : { value: "+18%", isPositive: true }}
             className="bg-white border border-[#E5E7EB] rounded-2xl shadow-sm"
           />
           <StatCard
@@ -220,7 +262,7 @@ export default function BuilderDashboard() {
             <CardTitle className="text-[#111827] font-semibold">Recent Investors</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
+            <div className={`space-y-3 ${isBuilderRestricted ? "opacity-50 blur-[1px]" : ""}`}>
               {[
                 { name: "John Investor", amount: "$12,000", project: "Luxury Apartments", date: "2 hours ago" },
                 { name: "Sarah Smith", amount: "$8,500", project: "Green Valley Villas", date: "5 hours ago" },
@@ -247,6 +289,11 @@ export default function BuilderDashboard() {
                 </div>
               ))}
             </div>
+            {isBuilderRestricted && (
+              <p className="mt-4 text-sm font-medium text-amber-700">
+                Investment and payout-sensitive builder insights are locked until KYC is approved.
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>

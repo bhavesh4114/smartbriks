@@ -53,11 +53,7 @@ export default function InvestorLogin() {
     if (selectedRole === "investor") {
       const kycStatus = getKycStatus();
       setInvestorUser({ role: "investor", kycStatus });
-      if (kycStatus === "approved" || kycStatus === "pending") {
-        navigate("/investor/dashboard");
-      } else {
-        navigate("/investor/kyc");
-      }
+      navigate("/investor/dashboard");
     } else {
       const kycStatus = getBuilderKycStatus();
       setBuilderUser({ role: "builder", kycStatus });

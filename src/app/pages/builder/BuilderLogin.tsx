@@ -17,11 +17,7 @@ export default function BuilderLogin() {
     e.preventDefault();
     const kycStatus = getBuilderKycStatus();
     setBuilderUser({ role: "builder", kycStatus });
-    if (kycStatus === "approved" || kycStatus === "pending") {
-      navigate("/builder/dashboard");
-    } else {
-      navigate("/builder/kyc");
-    }
+    navigate("/builder/dashboard");
   };
 
   const handleRegister = (e: React.FormEvent) => {

@@ -1,10 +1,14 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
 import { DashboardLayout } from "../../components/layout/DashboardLayout";
 import { investorMenuItems } from "../../config/menuItems";
 import { StatCard } from "../../components/shared/StatCard";
-import { Wallet, FolderKanban, TrendingUp, Clock } from "lucide-react";
+import { Wallet, FolderKanban, TrendingUp, Clock, TriangleAlert } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
+import { Button } from "../../components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "../../components/ui/alert";
+import { getKycStatus, type KycStatus } from "../../config/kyc";
 import {
   AreaChart,
   Area,
@@ -31,6 +35,25 @@ const recentNotifications = [
 ];
 
 export default function InvestorDashboard() {
+  const navigate = useNavigate();
+  const [kycStatus, setKycStatus] = useState<KycStatus>(() => getKycStatus());
+
+  useEffect(() => {
+    const syncKycStatus = () => setKycStatus(getKycStatus());
+    syncKycStatus();
+
+    window.addEventListener("focus", syncKycStatus);
+    window.addEventListener("storage", syncKycStatus);
+
+    return () => {
+      window.removeEventListener("focus", syncKycStatus);
+      window.removeEventListener("storage", syncKycStatus);
+    };
+  }, []);
+
+  const isKycApproved = kycStatus === "approved";
+  const isSensitiveLocked = !isKycApproved;
+
   return (
     <DashboardLayout
       sidebarItems={investorMenuItems}
@@ -39,6 +62,25 @@ export default function InvestorDashboard() {
       logoText="RealEstate"
     >
       <div className="min-w-0 space-y-6 sm:space-y-8">
+        {!isKycApproved && (
+          <Alert className="border-amber-300 bg-amber-50 text-amber-900">
+            <TriangleAlert className="h-4 w-4" aria-hidden />
+            <AlertTitle>KYC Required</AlertTitle>
+            <AlertDescription className="w-full text-amber-800">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p>Complete your KYC to unlock full investment features.</p>
+                <Button
+                  type="button"
+                  onClick={() => navigate("/investor/kyc")}
+                  className="rounded-lg bg-amber-600 text-white hover:bg-amber-700"
+                >
+                  Complete KYC
+                </Button>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+
         <div className="min-w-0">
           <h1 className="break-words text-2xl font-semibold text-[#111827] sm:text-3xl">Welcome back, John!</h1>
           <p className="mt-1 text-[#6B7280]">Here's your investment overview</p>
@@ -65,16 +107,16 @@ export default function InvestorDashboard() {
           />
           <StatCard
             title="Total Returns"
-            value="$6,750"
+            value={isSensitiveLocked ? "Locked until KYC approval" : "$6,750"}
             icon={TrendingUp}
             iconBg="bg-green-50"
             iconTextColor="text-[#16A34A]"
-            trend={{ value: "+8.2%", isPositive: true }}
+            trend={isSensitiveLocked ? undefined : { value: "+8.2%", isPositive: true }}
             className="bg-white border border-[#E5E7EB] rounded-2xl shadow-sm transition-shadow duration-200 lg:hover:shadow-md"
           />
           <StatCard
             title="Pending Payouts"
-            value="$2,500"
+            value={isSensitiveLocked ? "Locked until KYC approval" : "$2,500"}
             icon={Clock}
             iconBg="bg-amber-50"
             iconTextColor="text-amber-600"
@@ -163,7 +205,7 @@ export default function InvestorDashboard() {
               <CardTitle className="text-[#111827] font-semibold">Active Investments</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <div className={`space-y-4 ${isSensitiveLocked ? "opacity-50 blur-[1px]" : ""}`}>
                 {[
                   { name: "Luxury Apartments Downtown", invested: "$12,000", roi: "15%", status: "Active" },
                   { name: "Green Valley Villas", invested: "$8,500", roi: "12%", status: "Active" },
@@ -181,6 +223,11 @@ export default function InvestorDashboard() {
                   </div>
                 ))}
               </div>
+              {isSensitiveLocked && (
+                <p className="mt-4 text-sm font-medium text-amber-700">
+                  Investment and returns actions are locked until KYC is approved.
+                </p>
+              )}
             </CardContent>
           </Card>
         </div>

@@ -167,11 +167,11 @@ export default function BuilderKyc() {
       if (isAppEnvDev()) {
         setTimeout(() => {
           syncBuilderKycStatus("approved");
-          navigate("/builder/login", { replace: true });
+          navigate("/investor/login", { replace: true });
         }, 1500);
       } else {
         syncBuilderKycStatus("pending");
-        navigate("/builder/login", { replace: true });
+        navigate("/investor/login", { replace: true });
       }
       return;
     }
@@ -225,17 +225,29 @@ export default function BuilderKyc() {
   const secondaryBtnClass =
     "rounded-xl border-2 py-3.5 px-6 text-base font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2";
   const secondaryBtnStyle = { borderColor: "#E5E7EB", color: "#111827" };
+  const HERO_BG =
+    "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=1920&q=80";
 
   return (
     <>
       <SiteHeader authenticated />
-      <main className="min-w-0 pt-16 bg-[#F8FAFC]">
-        <div className="min-w-0 px-4 py-8">
-          <div className="mx-auto min-w-0 max-w-[900px]">
-            <div
-              className="rounded-2xl bg-white p-6 shadow-sm border border-[#E5E7EB] sm:p-8"
-              style={{ color: "#111827" }}
-            >
+      <main className="relative min-h-screen min-w-0 pt-16">
+        <div className="fixed inset-0 -z-10">
+          <img
+            src={HERO_BG}
+            alt=""
+            className="h-full w-full object-cover blur-[2px] scale-105"
+          />
+          <div className="absolute inset-0 bg-gradient-to-br from-black/70 via-slate-900/75 to-blue-900/60" />
+        </div>
+
+        <div className="relative z-10 min-w-0 px-4 py-8 sm:py-10">
+          <div className="mx-auto w-full min-w-0 max-w-[1000px]">
+            <div className="relative z-10 overflow-visible rounded-3xl border border-white/20 bg-white/10 p-6 shadow-2xl backdrop-blur-xl sm:p-10">
+              <div
+                className="rounded-2xl bg-white p-6 shadow-sm border border-[#E5E7EB] sm:p-8"
+                style={{ color: "#111827" }}
+              >
               <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
                 <h1 className="text-2xl font-bold text-[#111827]">
                   Builder KYC Verification
@@ -1030,6 +1042,7 @@ export default function BuilderKyc() {
                   </div>
                 </>
               )}
+              </div>
             </div>
           </div>
         </div>
