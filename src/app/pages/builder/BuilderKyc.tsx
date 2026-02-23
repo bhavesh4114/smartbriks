@@ -167,11 +167,11 @@ export default function BuilderKyc() {
       if (isAppEnvDev()) {
         setTimeout(() => {
           syncBuilderKycStatus("approved");
-          navigate("/investor/login", { replace: true });
+          navigate("/builder/dashboard", { replace: true });
         }, 1500);
       } else {
         syncBuilderKycStatus("pending");
-        navigate("/investor/login", { replace: true });
+        navigate("/builder/dashboard", { replace: true });
       }
       return;
     }

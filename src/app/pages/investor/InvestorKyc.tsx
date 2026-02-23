@@ -3,7 +3,6 @@ import { Link, useNavigate } from "react-router";
 import { motion } from "motion/react";
 import { Shield, Calendar, Lock, Check, Eye, EyeOff, Info, Camera, Upload, ChevronRight } from "lucide-react";
 import { getKycStatus, setKycStatus, syncInvestorUserKycStatus } from "../../config/kyc";
-import { isAppEnvDev } from "../../config/env";
 import { Label } from "../../components/ui/label";
 import { Dropdown } from "../../components/ui/dropdown";
 import { SiteHeader } from "../../components/layout/SiteHeader";
@@ -176,7 +175,7 @@ export default function InvestorKyc() {
     return Object.keys(nextErrors).length === 0;
   };
 
-  const handleContinue = (e: React.FormEvent) => {
+  const handleContinue = async (e: React.FormEvent) => {
     e.preventDefault();
     if (currentStep === 1 && !validateStep1()) return;
     if (currentStep === 2 && !validateStep2()) return;
@@ -189,15 +188,39 @@ export default function InvestorKyc() {
         return;
       }
       setIsSubmittingKyc(true);
-      if (isAppEnvDev()) {
-        // DEV ONLY: auto-approve after short delay; then redirect to login
-        setTimeout(() => {
-          syncInvestorUserKycStatus("approved");
-          setTimeout(() => navigate("/investor/login"), 0);
-        }, 2500);
-      } else {
-        syncInvestorUserKycStatus("pending");
-        navigate("/investor/login");
+      const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+      if (!token) {
+        setErrors((e) => ({ ...e, declaration: "Please log in to submit KYC." }));
+        setIsSubmittingKyc(false);
+        return;
+      }
+      try {
+        const res = await fetch("/api/investor/kyc", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            documentType: "KYC_SUBMISSION",
+            documentNumber: kycData.pan?.trim()?.toUpperCase() || "PENDING",
+            selfieImage: kycData.selfieImage || null,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.success) {
+          syncInvestorUserKycStatus("pending");
+          navigate("/investor/kyc/status", { replace: true });
+          return;
+        }
+        setErrors((e) => ({
+          ...e,
+          declaration: data.message || "Failed to submit KYC. Please try again.",
+        }));
+      } catch {
+        setErrors((e) => ({ ...e, declaration: "Network error. Please try again." }));
+      } finally {
+        setIsSubmittingKyc(false);
       }
       return;
     }

@@ -7,7 +7,10 @@ export default function BuilderLogout() {
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    navigate("/");
+    localStorage.removeItem("token");
+    localStorage.removeItem("userRole");
+    localStorage.removeItem("user");
+    navigate("/login", { replace: true });
   };
 
   const handleCancel = () => {

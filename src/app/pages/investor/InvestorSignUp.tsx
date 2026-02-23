@@ -1,10 +1,35 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { motion } from "motion/react";
-import { Building2, Mail, Lock, Eye, EyeOff, User, Phone } from "lucide-react";
+import { Building2, Mail, Lock, Eye, EyeOff, User, Phone, CheckCircle } from "lucide-react";
 import { Label } from "../../components/ui/label";
 import { SiteHeader } from "../../components/layout/SiteHeader";
 import { SiteFooter } from "../../components/layout/SiteFooter";
+
+const API_BASE = "http://localhost:4000";
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+type FieldErrors = Record<string, string>;
+
+function validateInvestorForm(values: {
+  fullName: string;
+  email: string;
+  mobileNumber: string;
+  password: string;
+  confirmPassword: string;
+  termsAccepted: boolean;
+}): FieldErrors {
+  const err: FieldErrors = {};
+  if (!values.fullName?.trim()) err.fullName = "Full name is required.";
+  if (!values.email?.trim()) err.email = "Email is required.";
+  else if (!EMAIL_REGEX.test(values.email.trim())) err.email = "Please enter a valid email.";
+  if (!values.mobileNumber?.trim()) err.mobileNumber = "Mobile number is required.";
+  if (!values.password) err.password = "Password is required.";
+  else if (values.password.length < 6) err.password = "Password must be at least 6 characters.";
+  if (values.password !== values.confirmPassword) err.confirmPassword = "Passwords do not match.";
+  if (!values.termsAccepted) err.termsAccepted = "You must accept the terms.";
+  return err;
+}
 
 const GOOGLE_ICON = (
   <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden>
@@ -26,9 +51,11 @@ const HERO_IMAGE =
 
 const formStagger = { delay: 0.07, duration: 0.4 };
 
+type RegistrationRole = "INVESTOR" | "BUILDER";
+
 export default function InvestorSignUp() {
   const navigate = useNavigate();
-  const [selectedRole, setSelectedRole] = useState<"investor" | "builder">("investor");
+  const [selectedRole, setSelectedRole] = useState<RegistrationRole>("INVESTOR");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [mobile, setMobile] = useState("");
@@ -37,12 +64,76 @@ export default function InvestorSignUp() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [agreeTerms, setAgreeTerms] = useState(false);
+  const [errors, setErrors] = useState<FieldErrors>({});
+  const [submitError, setSubmitError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password !== confirmPassword) return;
-    if (selectedRole === "investor") navigate("/investor/kyc");
-    else navigate("/builder/kyc");
+    setSubmitError("");
+
+    // Validate then call backend – Investor → users table, Builder → builders table
+    const fullName = name.trim();
+    const emailVal = email.trim();
+    const mobileNumber = mobile.trim();
+    const validation = validateInvestorForm({
+      fullName,
+      email: emailVal,
+      mobileNumber,
+      password,
+      confirmPassword,
+      termsAccepted: agreeTerms,
+    });
+    if (Object.keys(validation).length > 0) {
+      setErrors(validation);
+      return;
+    }
+    setErrors({});
+
+    setSubmitting(true);
+    try {
+      const isInvestor = selectedRole === "INVESTOR";
+      const url = isInvestor
+        ? `${API_BASE}/api/auth/investor/register`
+        : `${API_BASE}/api/auth/builder/register`;
+      const body = isInvestor
+        ? { fullName, email: emailVal, mobileNumber, password }
+        : {
+            companyName: fullName,
+            contactPerson: fullName,
+            email: emailVal,
+            mobileNumber,
+            password,
+          };
+
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok && data.success === true) {
+        setSuccessMessage("Registered successfully");
+        setSubmitting(false);
+        const loginPath = isInvestor ? "/investor/login" : "/builder/login";
+        setTimeout(() => {
+          navigate(loginPath, { replace: true });
+        }, 1500);
+        return;
+      }
+
+      if (res.status === 400 || res.status === 409) {
+        setSubmitError(data.message || "Registration failed.");
+        return;
+      }
+      setSubmitError("Server error, please try again.");
+    } catch {
+      setSubmitError("Server error, please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const passwordsMatch = !confirmPassword || password === confirmPassword;
@@ -144,14 +235,16 @@ export default function InvestorSignUp() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.24, duration: formStagger.duration }}
               className="flex rounded-xl bg-white/5 p-1 backdrop-blur-sm"
+              role="group"
+              aria-label="Registration role"
             >
               <button
                 type="button"
                 role="tab"
-                aria-selected={selectedRole === "investor"}
-                onClick={() => setSelectedRole("investor")}
+                aria-selected={selectedRole === "INVESTOR"}
+                onClick={() => setSelectedRole("INVESTOR")}
                 className={`flex-1 rounded-lg py-2.5 text-sm font-medium transition-all duration-200 ${
-                  selectedRole === "investor"
+                  selectedRole === "INVESTOR"
                     ? "bg-[#2563eb] text-white shadow-lg shadow-[#2563eb]/30"
                     : "text-slate-400 hover:text-white"
                 }`}
@@ -161,10 +254,10 @@ export default function InvestorSignUp() {
               <button
                 type="button"
                 role="tab"
-                aria-selected={selectedRole === "builder"}
-                onClick={() => setSelectedRole("builder")}
+                aria-selected={selectedRole === "BUILDER"}
+                onClick={() => setSelectedRole("BUILDER")}
                 className={`flex-1 rounded-lg py-2.5 text-sm font-medium transition-all duration-200 ${
-                  selectedRole === "builder"
+                  selectedRole === "BUILDER"
                     ? "bg-[#2563eb] text-white shadow-lg shadow-[#2563eb]/30"
                     : "text-slate-400 hover:text-white"
                 }`}
@@ -191,11 +284,13 @@ export default function InvestorSignUp() {
                   autoComplete="name"
                   placeholder="John Doe"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => { setName(e.target.value); setErrors((prev) => ({ ...prev, fullName: "" })); }}
                   required
                   className={inputBase}
+                  aria-invalid={!!errors.fullName}
                 />
               </div>
+              {errors.fullName && <p className="text-sm text-red-400">{errors.fullName}</p>}
             </motion.div>
 
             <motion.div
@@ -216,11 +311,13 @@ export default function InvestorSignUp() {
                   autoComplete="email"
                   placeholder="name@company.com"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => { setEmail(e.target.value); setErrors((prev) => ({ ...prev, email: "" })); }}
                   required
                   className={inputBase}
+                  aria-invalid={!!errors.email}
                 />
               </div>
+              {errors.email && <p className="text-sm text-red-400">{errors.email}</p>}
             </motion.div>
 
             <motion.div
@@ -241,11 +338,13 @@ export default function InvestorSignUp() {
                   autoComplete="tel"
                   placeholder="+91 98765 43210"
                   value={mobile}
-                  onChange={(e) => setMobile(e.target.value)}
+                  onChange={(e) => { setMobile(e.target.value); setErrors((prev) => ({ ...prev, mobileNumber: "" })); }}
                   required
                   className={inputBase}
+                  aria-invalid={!!errors.mobileNumber}
                 />
               </div>
+              {errors.mobileNumber && <p className="text-sm text-red-400">{errors.mobileNumber}</p>}
             </motion.div>
 
             <motion.div
@@ -266,9 +365,10 @@ export default function InvestorSignUp() {
                   autoComplete="new-password"
                   placeholder="••••••••"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => { setPassword(e.target.value); setErrors((prev) => ({ ...prev, password: "" })); }}
                   required
                   className={`${inputBase} pr-12`}
+                  aria-invalid={!!errors.password}
                 />
                 <button
                   type="button"
@@ -279,6 +379,7 @@ export default function InvestorSignUp() {
                   {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
               </div>
+              {errors.password && <p className="text-sm text-red-400">{errors.password}</p>}
             </motion.div>
 
             <motion.div
@@ -299,7 +400,7 @@ export default function InvestorSignUp() {
                   autoComplete="new-password"
                   placeholder="••••••••"
                   value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  onChange={(e) => { setConfirmPassword(e.target.value); setErrors((prev) => ({ ...prev, confirmPassword: "" })); }}
                   required
                   className={`${inputBase} pr-12`}
                 />
@@ -312,8 +413,8 @@ export default function InvestorSignUp() {
                   {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
               </div>
-              {!passwordsMatch && (
-                <p className="text-sm text-red-400">Passwords do not match</p>
+              {(errors.confirmPassword || (!passwordsMatch && confirmPassword)) && (
+                <p className="text-sm text-red-400">{errors.confirmPassword || "Passwords do not match"}</p>
               )}
             </motion.div>
 
@@ -328,9 +429,10 @@ export default function InvestorSignUp() {
                 name="agreeTerms"
                 type="checkbox"
                 checked={agreeTerms}
-                onChange={(e) => setAgreeTerms(e.target.checked)}
+                onChange={(e) => { setAgreeTerms(e.target.checked); setErrors((prev) => ({ ...prev, termsAccepted: "" })); }}
                 required
                 className="mt-1 h-4 w-4 rounded border-slate-500 bg-white/5 text-[#2563eb] transition-colors focus:ring-2 focus:ring-[#2563eb]/30 focus:ring-offset-0 focus:ring-offset-transparent"
+                aria-invalid={!!errors.termsAccepted}
               />
               <Label htmlFor="agreeTerms" className="cursor-pointer text-sm font-normal text-slate-400">
                 I agree to the{" "}
@@ -342,7 +444,24 @@ export default function InvestorSignUp() {
                   Privacy Policy
                 </Link>
               </Label>
+              <div className="w-full basis-full">{errors.termsAccepted && <p className="text-sm text-red-400">{errors.termsAccepted}</p>}</div>
             </motion.div>
+
+            {successMessage && (
+              <div
+                className="flex items-center gap-3 rounded-xl border border-emerald-500/40 bg-emerald-500/15 px-4 py-3 text-emerald-200"
+                role="status"
+                aria-live="polite"
+              >
+                <CheckCircle className="h-5 w-5 shrink-0 text-emerald-400" aria-hidden />
+                <p className="text-sm font-medium">{successMessage}</p>
+              </div>
+            )}
+            {submitError && !successMessage && (
+              <p className="text-sm text-red-400" role="alert">
+                {submitError}
+              </p>
+            )}
 
             <motion.div
               initial={{ opacity: 0, y: 12 }}
@@ -351,13 +470,13 @@ export default function InvestorSignUp() {
             >
               <motion.button
                 type="submit"
-                disabled={!passwordsMatch || !agreeTerms}
-                whileHover={passwordsMatch && agreeTerms ? { scale: 1.02 } : undefined}
-                whileTap={passwordsMatch && agreeTerms ? { scale: 0.98 } : undefined}
+                disabled={!passwordsMatch || !agreeTerms || submitting || !!successMessage}
+                whileHover={passwordsMatch && agreeTerms && !submitting && !successMessage ? { scale: 1.02 } : undefined}
+                whileTap={passwordsMatch && agreeTerms && !submitting && !successMessage ? { scale: 0.98 } : undefined}
                 transition={{ type: "spring", stiffness: 400, damping: 17 }}
                 className="w-full rounded-xl bg-[#2563eb] py-3.5 text-base font-semibold text-white shadow-lg shadow-[#2563eb]/30 transition-colors hover:bg-[#1d4ed8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Create Account
+                {successMessage ? "Redirecting…" : submitting ? "Creating Account…" : "Create Account"}
               </motion.button>
             </motion.div>
           </form>

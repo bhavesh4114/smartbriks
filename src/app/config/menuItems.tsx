@@ -117,6 +117,11 @@ export const adminMenuItems: SidebarItem[] = [
     href: "/admin/dashboard",
   },
   {
+    title: "KYC Management",
+    icon: Shield,
+    href: "/admin/kyc",
+  },
+  {
     title: "Investor Management",
     icon: Users,
     href: "/admin/investors",

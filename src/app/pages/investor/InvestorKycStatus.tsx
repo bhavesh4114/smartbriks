@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { motion } from "motion/react";
-import { AlertCircle, Clock, Shield } from "lucide-react";
+import { AlertCircle, Clock, Shield, RefreshCw } from "lucide-react";
 import {
   getEffectiveInvestorUser,
   getKycRejectionReason,
   setKycStatus,
   setKycRejectionReason,
+  syncInvestorUserKycStatus,
   type InvestorUser,
 } from "../../config/kyc";
 import { SiteHeader } from "../../components/layout/SiteHeader";
@@ -49,6 +50,23 @@ export default function InvestorKycStatus() {
     navigate("/investor/kyc", { replace: true });
   };
 
+  const fetchAndSyncStatus = () => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if (!token) return;
+    fetch("/api/investor/kyc/status", { headers: { Authorization: `Bearer ${token}` } })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.success && data.kycStatus) {
+          const raw = data.kycStatus;
+          const mapped =
+            raw === "VERIFIED" ? "approved" : raw === "REJECTED" ? "rejected" : raw === "PENDING" ? "pending" : user?.kycStatus ?? "pending";
+          syncInvestorUserKycStatus(mapped);
+          setUser(getEffectiveInvestorUser());
+        }
+      })
+      .catch(() => {});
+  };
+
   const status = user?.kycStatus;
   if (!status || status === "not_started" || status === "in_progress" || status === "approved") {
     return null;
@@ -77,9 +95,19 @@ export default function InvestorKycStatus() {
           >
             {status === "pending" && (
               <>
-                <PendingView />
+                <PendingView onRefresh={fetchAndSyncStatus} />
                 {user.role === "investor" && (
-                  <div className="mt-8 flex justify-center">
+                  <div className="mt-8 flex flex-wrap justify-center gap-3">
+                    <motion.button
+                      type="button"
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.97 }}
+                      onClick={fetchAndSyncStatus}
+                      className="rounded-xl border border-white/30 bg-white/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-sm transition-colors hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white/10"
+                    >
+                      <RefreshCw className="mr-2 inline-block h-4 w-4" aria-hidden />
+                      Refresh status
+                    </motion.button>
                     <motion.button
                       type="button"
                       whileHover={{ scale: 1.03 }}
@@ -113,7 +141,7 @@ export default function InvestorKycStatus() {
   );
 }
 
-function PendingView() {
+function PendingView({ onRefresh }: { onRefresh?: () => void }) {
   return (
     <div className="flex flex-col items-center text-center">
       <motion.div
@@ -157,7 +185,15 @@ function PendingView() {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4, duration: 0.4 }}
-        className="mt-2 max-w-md text-sm text-white/60"
+        className="mt-2 max-w-md text-sm font-medium text-blue-200"
+      >
+        Wait for admin approval. Once approved, your dashboard will show approved status.
+      </motion.p>
+      <motion.p
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.45, duration: 0.4 }}
+        className="mt-1 max-w-md text-sm text-white/60"
       >
         We will notify you once the verification is complete.
       </motion.p>

@@ -7,8 +7,10 @@ export default function InvestorLogout() {
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    // Perform logout logic here
-    navigate("/");
+    localStorage.removeItem("token");
+    localStorage.removeItem("userRole");
+    localStorage.removeItem("user");
+    navigate("/login", { replace: true });
   };
 
   const handleCancel = () => {

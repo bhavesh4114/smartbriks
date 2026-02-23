@@ -1,5 +1,5 @@
 import React from "react";
-import { createBrowserRouter } from "react-router";
+import { createBrowserRouter, Navigate } from "react-router";
 
 // Home
 import Home from "./pages/Home";
@@ -8,7 +8,7 @@ import PropertiesList from "./pages/PropertiesList";
 import Resources from "./pages/Resources";
 
 // Investor Pages
-import InvestorLogin from "./pages/investor/InvestorLogin";
+import Login from "./pages/Login";
 import InvestorSignUp from "./pages/investor/InvestorSignUp";
 import InvestorKyc from "./pages/investor/InvestorKyc";
 import InvestorKycStatus from "./pages/investor/InvestorKycStatus";
@@ -38,10 +38,11 @@ import BuilderNotifications from "./pages/builder/BuilderNotifications";
 import BuilderProfile from "./pages/builder/BuilderProfile";
 import BuilderLogout from "./pages/builder/BuilderLogout";
 import { BuilderKycGuard } from "./components/auth/BuilderKycGuard";
+import { AdminGuard } from "./components/auth/AdminGuard";
 
-// Admin Pages
-import AdminLogin from "./pages/admin/AdminLogin";
+// Admin Pages (no separate admin login – use /login)
 import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminKyc from "./pages/admin/AdminKyc";
 import AdminInvestors from "./pages/admin/AdminInvestors";
 import AdminBuilders from "./pages/admin/AdminBuilders";
 import AdminProjects from "./pages/admin/AdminProjects";
@@ -71,10 +72,15 @@ export const router = createBrowserRouter([
     path: "/resources",
     Component: Resources,
   },
+  // Unified login (Investor, Builder, Admin)
+  {
+    path: "/login",
+    Component: Login,
+  },
   // Investor Routes
   {
     path: "/investor/login",
-    Component: InvestorLogin,
+    Component: Login,
   },
   {
     path: "/investor/signup",
@@ -177,57 +183,61 @@ export const router = createBrowserRouter([
     path: "/builder/logout",
     Component: () => React.createElement(BuilderKycGuard, { Component: BuilderLogout }),
   },
-  // Admin Routes
+  // Admin Routes (no separate /admin/login – use /login; redirect /admin/login → /login)
   {
     path: "/admin/login",
-    Component: AdminLogin,
+    Component: () => React.createElement(Navigate, { to: "/login", replace: true }),
   },
   {
     path: "/admin/dashboard",
-    Component: AdminDashboard,
+    Component: () => React.createElement(AdminGuard, { Component: AdminDashboard }),
+  },
+  {
+    path: "/admin/kyc",
+    Component: () => React.createElement(AdminGuard, { Component: AdminKyc }),
   },
   {
     path: "/admin/investors",
-    Component: AdminInvestors,
+    Component: () => React.createElement(AdminGuard, { Component: AdminInvestors }),
   },
   {
     path: "/admin/builders",
-    Component: AdminBuilders,
+    Component: () => React.createElement(AdminGuard, { Component: AdminBuilders }),
   },
   {
     path: "/admin/projects",
-    Component: AdminProjects,
+    Component: () => React.createElement(AdminGuard, { Component: AdminProjects }),
   },
   {
     path: "/admin/investments",
-    Component: AdminInvestments,
+    Component: () => React.createElement(AdminGuard, { Component: AdminInvestments }),
   },
   {
     path: "/admin/payouts",
-    Component: AdminPayouts,
+    Component: () => React.createElement(AdminGuard, { Component: AdminPayouts }),
   },
   {
     path: "/admin/documents",
-    Component: AdminDocuments,
+    Component: () => React.createElement(AdminGuard, { Component: AdminDocuments }),
   },
   {
     path: "/admin/reports",
-    Component: AdminReports,
+    Component: () => React.createElement(AdminGuard, { Component: AdminReports }),
   },
   {
     path: "/admin/cms",
-    Component: AdminCMS,
+    Component: () => React.createElement(AdminGuard, { Component: AdminCMS }),
   },
   {
     path: "/admin/notifications",
-    Component: AdminNotifications,
+    Component: () => React.createElement(AdminGuard, { Component: AdminNotifications }),
   },
   {
     path: "/admin/settings",
-    Component: AdminSettings,
+    Component: () => React.createElement(AdminGuard, { Component: AdminSettings }),
   },
   {
     path: "/admin/logout",
-    Component: AdminLogout,
+    Component: () => React.createElement(AdminGuard, { Component: AdminLogout }),
   },
 ]);

@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/ca
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "../../components/ui/alert";
-import { getKycStatus, type KycStatus } from "../../config/kyc";
+import { getKycStatus, syncInvestorUserKycStatus, type KycStatus } from "../../config/kyc";
 import {
   AreaChart,
   Area,
@@ -41,6 +41,24 @@ export default function InvestorDashboard() {
   useEffect(() => {
     const syncKycStatus = () => setKycStatus(getKycStatus());
     syncKycStatus();
+
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if (token) {
+      fetch("/api/investor/kyc/status", {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data?.success && data.kycStatus) {
+            const raw = data.kycStatus;
+            const mapped: KycStatus =
+              raw === "VERIFIED" ? "approved" : raw === "REJECTED" ? "rejected" : raw === "PENDING" ? "pending" : getKycStatus();
+            syncInvestorUserKycStatus(mapped);
+            setKycStatus(mapped);
+          }
+        })
+        .catch(() => {});
+    }
 
     window.addEventListener("focus", syncKycStatus);
     window.addEventListener("storage", syncKycStatus);

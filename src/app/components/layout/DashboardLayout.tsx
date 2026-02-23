@@ -39,9 +39,10 @@ export function DashboardLayout({
 }: DashboardLayoutProps) {
   const { pathname } = useLocation();
   const isLightTheme =
-    pathname.startsWith("/investor") || pathname.startsWith("/builder");
+    pathname.startsWith("/investor") || pathname.startsWith("/builder") || pathname.startsWith("/admin");
   const isInvestor = pathname.startsWith("/investor");
   const isBuilder = pathname.startsWith("/builder");
+  const isAdmin = pathname.startsWith("/admin");
   const isMobile = useIsMobile();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -50,28 +51,28 @@ export function DashboardLayout({
   }, [pathname]);
 
   useEffect(() => {
-    const useMobileSidebar = isInvestor || isBuilder;
+    const useMobileSidebar = isInvestor || isBuilder || isAdmin;
     if (!useMobileSidebar || !isMobile) return;
     if (sidebarOpen) document.body.style.overflow = "hidden";
     else document.body.style.overflow = "";
     return () => {
       document.body.style.overflow = "";
     };
-  }, [sidebarOpen, isInvestor, isBuilder, isMobile]);
+  }, [sidebarOpen, isInvestor, isBuilder, isAdmin, isMobile]);
 
   const theme = isLightTheme ? "investor" : "default";
-  const showMobileSidebar = (isInvestor || isBuilder) && isMobile;
+  const showMobileSidebar = (isInvestor || isBuilder || isAdmin) && isMobile;
 
   return (
     <div className="flex h-screen min-w-0 overflow-hidden bg-background">
-      {/* Sidebar: hidden on mobile for investor & builder (lg:flex); overlay used on mobile instead */}
+      {/* Sidebar: hidden on mobile for investor, builder & admin (lg:flex); overlay used on mobile instead */}
       <Sidebar
         items={sidebarItems}
         logoText={logoText}
         theme={theme}
-        className={isInvestor || isBuilder ? "hidden lg:flex" : ""}
+        className={isInvestor || isBuilder || isAdmin ? "hidden lg:flex" : ""}
       />
-      {/* Mobile overlay sidebar (investor & builder) */}
+      {/* Mobile overlay sidebar (investor, builder & admin) */}
       {showMobileSidebar && (
         <Sidebar
           items={sidebarItems}
