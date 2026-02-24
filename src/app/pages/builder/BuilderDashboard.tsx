@@ -7,7 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/ca
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "../../components/ui/alert";
-import { getBuilderKycStatus, type BuilderKycStatus } from "../../config/builderKyc";
+import {
+  getBuilderKycStatus,
+  getBuilderKycRejectionReason,
+  setBuilderKycRejectionReason,
+  syncBuilderKycStatus,
+  type BuilderKycStatus,
+} from "../../config/builderKyc";
 import {
   PieChart,
   Pie,
@@ -40,10 +46,39 @@ const fundingData = [
 export default function BuilderDashboard() {
   const navigate = useNavigate();
   const [kycStatus, setKycStatus] = useState<BuilderKycStatus>(() => getBuilderKycStatus());
+  const [rejectionReason, setRejectionReason] = useState<string>(() => getBuilderKycRejectionReason());
 
   useEffect(() => {
     const syncKycStatus = () => setKycStatus(getBuilderKycStatus());
     syncKycStatus();
+
+    const token =
+      typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if (token) {
+      fetch("/api/builder/kyc/status", {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data?.success && data.kycStatus) {
+            const raw = data.kycStatus as string;
+            const mapped: BuilderKycStatus =
+              raw === "VERIFIED"
+                ? "approved"
+                : raw === "REJECTED"
+                ? "rejected"
+                : raw === "PENDING"
+                ? "pending"
+                : getBuilderKycStatus();
+            syncBuilderKycStatus(mapped);
+            const reason = typeof data.rejectionReason === "string" ? data.rejectionReason : "";
+            setBuilderKycRejectionReason(reason);
+            setRejectionReason(reason);
+            setKycStatus(mapped);
+          }
+        })
+        .catch(() => {});
+    }
 
     window.addEventListener("focus", syncKycStatus);
     window.addEventListener("storage", syncKycStatus);
@@ -63,16 +98,24 @@ export default function BuilderDashboard() {
         {isBuilderRestricted && (
           <Alert className="border-amber-300 bg-amber-50 text-amber-900">
             <TriangleAlert className="h-4 w-4" aria-hidden />
-            <AlertTitle>KYC Required</AlertTitle>
+            <AlertTitle>
+              {kycStatus === "pending" ? "KYC under review" : kycStatus === "rejected" ? "KYC rejected" : "KYC Required"}
+            </AlertTitle>
             <AlertDescription className="w-full text-amber-800">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <p>Complete your KYC to unlock full builder features.</p>
+                <p>
+                  {kycStatus === "pending"
+                    ? "KYC submitted. Awaiting admin approval."
+                    : kycStatus === "rejected"
+                    ? rejectionReason || "Your KYC was rejected. Please re-submit your KYC."
+                    : "Complete your KYC to unlock full builder features."}
+                </p>
                 <Button
                   type="button"
                   onClick={() => navigate("/builder/kyc")}
                   className="rounded-lg bg-amber-600 text-white hover:bg-amber-700"
                 >
-                  Complete KYC
+                  {kycStatus === "rejected" ? "Re-submit KYC" : "Complete KYC"}
                 </Button>
               </div>
             </AlertDescription>
@@ -81,7 +124,9 @@ export default function BuilderDashboard() {
 
         <div className="min-w-0">
           <h1 className="break-words text-2xl font-semibold text-[#111827] sm:text-3xl">Welcome back, Elite Constructions!</h1>
-          <p className="mt-1 text-[#6B7280]">Here's your project overview</p>
+          <p className="mt-1 text-[#6B7280]">
+            {isKycApproved ? "KYC Completed / Approved. Here's your project overview" : "Here's your project overview"}
+          </p>
         </div>
 
         {/* Stats Grid */}

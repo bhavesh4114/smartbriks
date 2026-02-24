@@ -1,18 +1,22 @@
 import { getEffectiveBuilderUser } from "../../config/builderKyc";
+import { Navigate, useLocation } from "react-router";
 
-/**
- * Route guard for builder routes.
- * It preserves builder-only access context and intentionally avoids KYC
- * redirects so dashboard is always reachable post-login.
- */
 export function BuilderKycGuard({
   Component,
 }: {
   Component: React.ComponentType;
 }) {
+  const location = useLocation();
   const user = getEffectiveBuilderUser();
 
   if (user?.role && user.role !== "builder") return null;
+  if (
+    user.kycStatus !== "approved" &&
+    location.pathname !== "/builder/dashboard" &&
+    location.pathname !== "/builder/logout"
+  ) {
+    return <Navigate to="/builder/dashboard" replace />;
+  }
 
   return <Component />;
 }

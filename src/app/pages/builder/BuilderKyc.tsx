@@ -6,7 +6,6 @@ import {
   setBuilderKycStatus,
   syncBuilderKycStatus,
 } from "../../config/builderKyc";
-import { isAppEnvDev } from "../../config/env";
 import { Label } from "../../components/ui/label";
 import { SiteHeader } from "../../components/layout/SiteHeader";
 import { SiteFooter } from "../../components/layout/SiteFooter";
@@ -91,6 +90,7 @@ export default function BuilderKyc() {
   const [authMobileVerified, setAuthMobileVerified] = useState(true);
   const [declarationAccepted, setDeclarationAccepted] = useState(false);
   const [isSubmittingKyc, setIsSubmittingKyc] = useState(false);
+  const [documentImageFile, setDocumentImageFile] = useState<File | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const validateStep1 = () => {
@@ -151,7 +151,7 @@ export default function BuilderKyc() {
     return Object.keys(nextErrors).length === 0;
   };
 
-  const handleContinue = (e: React.FormEvent) => {
+  const handleContinue = async (e: React.FormEvent) => {
     e.preventDefault();
     if (currentStep === 1 && !validateStep1()) return;
     if (currentStep === 2 && !validateStep2()) return;
@@ -164,14 +164,45 @@ export default function BuilderKyc() {
         return;
       }
       setIsSubmittingKyc(true);
-      if (isAppEnvDev()) {
-        setTimeout(() => {
-          syncBuilderKycStatus("approved");
+      const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+      if (!token) {
+        setErrors((err) => ({ ...err, declaration: "Please log in to submit KYC." }));
+        setIsSubmittingKyc(false);
+        return;
+      }
+      try {
+        const formData = new FormData();
+        formData.append("documentType", "BUILDER_KYC_SUBMISSION");
+        formData.append("documentNumber", kycData.companyPan?.trim()?.toUpperCase() || "PENDING");
+        const file = documentImageFile;
+        if (file) {
+          formData.append("documentImage", file);
+        }
+
+        const res = await fetch("/api/builder/kyc", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data?.success) {
+          syncBuilderKycStatus("pending");
           navigate("/builder/dashboard", { replace: true });
-        }, 1500);
-      } else {
-        syncBuilderKycStatus("pending");
-        navigate("/builder/dashboard", { replace: true });
+          return;
+        }
+        setErrors((err) => ({
+          ...err,
+          declaration: data?.message || "Failed to submit Builder KYC. Please try again.",
+        }));
+      } catch {
+        setErrors((err) => ({
+          ...err,
+          declaration: "Network error. Please try again.",
+        }));
+      } finally {
+        setIsSubmittingKyc(false);
       }
       return;
     }
@@ -203,7 +234,12 @@ export default function BuilderKyc() {
     field: keyof typeof kycData
   ) => {
     const file = e.target.files?.[0];
-    if (file) setKycData((d) => ({ ...d, [field]: file.name }));
+    if (file) {
+      setKycData((d) => ({ ...d, [field]: file.name }));
+      if (field === "idProofFile") {
+        setDocumentImageFile(file);
+      }
+    }
     e.target.value = "";
   };
 
@@ -910,6 +946,7 @@ export default function BuilderKyc() {
                             Choose file
                             <input
                               type="file"
+                              name="documentImage"
                               accept=".pdf,.jpg,.jpeg,.png"
                               className="hidden"
                               onChange={(e) => handleMockFileUpload(e, "idProofFile")}

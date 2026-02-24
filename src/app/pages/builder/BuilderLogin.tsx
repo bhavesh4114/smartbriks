@@ -22,7 +22,7 @@ export default function BuilderLogin() {
 
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
-    navigate("/builder/kyc");
+    navigate("/login");
   };
 
   return (

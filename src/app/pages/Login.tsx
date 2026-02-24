@@ -111,17 +111,13 @@ export default function Login() {
         return;
       }
 
-      if (role === "BUILDER") {
+      if (role === "BUILDER" || role === "builder") {
         const raw = data.user?.kycStatus ?? data.data?.kycStatus;
         const kycStatus =
           raw === "VERIFIED" ? "approved" : raw === "REJECTED" ? "rejected" : raw === "PENDING" ? "pending" : getBuilderKycStatus();
         setBuilderUser({ role: "builder", kycStatus });
         setBuilderKycStatus(kycStatus);
-        if (kycStatus === "approved" || kycStatus === "pending") {
-          navigate("/builder/dashboard", { replace: true });
-        } else {
-          navigate("/builder/kyc", { replace: true });
-        }
+        navigate("/builder/dashboard", { replace: true });
         return;
       }
 

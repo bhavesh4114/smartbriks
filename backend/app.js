@@ -1,5 +1,7 @@
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import authRoutes from './routes/auth.routes.js';
 import builderRoutes from './routes/builder.routes.js';
 import builderKycRoutes from './routes/builderKyc.routes.js';
@@ -12,12 +14,14 @@ import investorKycRoutes from './routes/investorKyc.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 
 const app = express();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 app.use(cors());
 // Allow larger payloads for KYC (e.g. base64 selfie images)
 const bodyLimit = '15mb';
 app.use(express.json({ limit: bodyLimit }));
 app.use(express.urlencoded({ extended: true, limit: bodyLimit }));
+app.use('/api/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Health check
 app.get('/health', (req, res) => {

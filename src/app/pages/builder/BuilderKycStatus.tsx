@@ -4,7 +4,6 @@ import { AlertCircle, Clock } from "lucide-react";
 import {
   getEffectiveBuilderUser,
   getBuilderKycRejectionReason,
-  setBuilderKycStatus,
   setBuilderKycRejectionReason,
   type BuilderUser,
 } from "../../config/builderKyc";
@@ -32,6 +31,40 @@ export default function BuilderKycStatus() {
   }, []);
 
   useEffect(() => {
+    const token =
+      typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if (!token) return;
+    fetch("/api/builder/kyc/status", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.success && data.kycStatus) {
+          const raw = data.kycStatus as string;
+          const mapped =
+            raw === "VERIFIED"
+              ? "approved"
+              : raw === "REJECTED"
+              ? "rejected"
+              : raw === "PENDING"
+              ? "pending"
+              : user.kycStatus;
+          if (typeof data.rejectionReason === "string") {
+            setBuilderKycRejectionReason(data.rejectionReason);
+          }
+          if (mapped !== user.kycStatus) {
+            // Persist for guards/dashboard via localStorage-backed helpers
+            import("../../config/builderKyc").then(({ syncBuilderKycStatus }) => {
+              syncBuilderKycStatus(mapped);
+              setUser(getEffectiveBuilderUser());
+            });
+          }
+        }
+      })
+      .catch(() => {});
+  }, [user.kycStatus]);
+
+  useEffect(() => {
     if (user.role !== "builder") return;
     if (user.kycStatus === "not_started" || user.kycStatus === "in_progress") {
       navigate("/builder/kyc", { replace: true });
@@ -40,7 +73,6 @@ export default function BuilderKycStatus() {
   }, [user.kycStatus, user.role, navigate]);
 
   const handleResubmit = () => {
-    setBuilderKycStatus("in_progress");
     setBuilderKycRejectionReason("");
     navigate("/builder/kyc", { replace: true });
   };

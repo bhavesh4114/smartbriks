@@ -117,7 +117,7 @@ export default function InvestorSignUp() {
       if (res.ok && data.success === true) {
         setSuccessMessage("Registered successfully");
         setSubmitting(false);
-        const loginPath = isInvestor ? "/investor/login" : "/builder/login";
+        const loginPath = isInvestor ? "/investor/login" : "/login";
         setTimeout(() => {
           navigate(loginPath, { replace: true });
         }, 1500);

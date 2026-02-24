@@ -1,19 +1,22 @@
 import prisma from '../utils/prisma.js';
 
 /**
- * List pending investor KYC submissions (for admin)
+ * List pending KYC submissions (investor + builder) for admin
  * GET /api/admin/kyc/pending
  */
 export async function listPendingInvestorKyc(req, res) {
   try {
     const list = await prisma.kYC.findMany({
       where: {
-        userId: { not: null },
         status: 'PENDING',
+        OR: [{ userId: { not: null } }, { builderId: { not: null } }],
       },
       include: {
         user: {
           select: { id: true, fullName: true, email: true, mobileNumber: true, kycStatus: true },
+        },
+        builder: {
+          select: { id: true, companyName: true, contactPerson: true, email: true, mobileNumber: true, kycStatus: true },
         },
       },
       orderBy: { createdAt: 'desc' },
@@ -28,6 +31,7 @@ export async function listPendingInvestorKyc(req, res) {
         status: k.status,
         createdAt: k.createdAt,
         user: k.user,
+        builder: k.builder,
       })),
     });
   } catch (err) {
@@ -47,7 +51,7 @@ export async function approveInvestorKyc(req, res) {
       return res.status(400).json({ success: false, message: 'Invalid KYC id.' });
     }
     const kyc = await prisma.kYC.findFirst({
-      where: { id, userId: { not: null } },
+      where: { id, OR: [{ userId: { not: null } }, { builderId: { not: null } }] },
     });
     if (!kyc) {
       return res.status(404).json({ success: false, message: 'KYC record not found.' });
@@ -55,19 +59,37 @@ export async function approveInvestorKyc(req, res) {
     if (kyc.status !== 'PENDING') {
       return res.status(400).json({ success: false, message: 'KYC is not pending.' });
     }
-    await prisma.$transaction([
+
+    const ops = [
       prisma.kYC.update({
         where: { id },
-        data: { status: 'VERIFIED', verifiedAt: new Date() },
+        data: { status: 'VERIFIED', verifiedAt: new Date(), rejectionReason: null },
       }),
-      prisma.user.update({
-        where: { id: kyc.userId },
-        data: { kycStatus: 'VERIFIED' },
-      }),
-    ]);
+    ];
+
+    if (kyc.userId) {
+      ops.push(
+        prisma.user.update({
+          where: { id: kyc.userId },
+          data: { kycStatus: 'VERIFIED' },
+        })
+      );
+    }
+    if (kyc.builderId) {
+      ops.push(
+        prisma.builder.update({
+          where: { id: kyc.builderId },
+          data: { kycStatus: 'VERIFIED', isApproved: true },
+        })
+      );
+    }
+
+    await prisma.$transaction(ops);
+
+    const subject = kyc.builderId ? 'Builder' : 'Investor';
     res.json({
       success: true,
-      message: 'KYC approved. Investor dashboard will show approved status.',
+      message: `KYC approved. ${subject} dashboard will show approved status.`,
     });
   } catch (err) {
     console.error('approveInvestorKyc:', err);
@@ -83,28 +105,49 @@ export async function approveInvestorKyc(req, res) {
 export async function rejectInvestorKyc(req, res) {
   try {
     const id = Number(req.params.id);
+    const reason = req.body?.reason?.trim();
     if (!Number.isInteger(id)) {
       return res.status(400).json({ success: false, message: 'Invalid KYC id.' });
     }
     const kyc = await prisma.kYC.findFirst({
-      where: { id, userId: { not: null } },
+      where: { id, OR: [{ userId: { not: null } }, { builderId: { not: null } }] },
     });
     if (!kyc) {
       return res.status(404).json({ success: false, message: 'KYC record not found.' });
     }
+    if (kyc.builderId && !reason) {
+      return res.status(400).json({ success: false, message: 'Rejection reason is required.' });
+    }
     if (kyc.status !== 'PENDING') {
       return res.status(400).json({ success: false, message: 'KYC is not pending.' });
     }
-    await prisma.$transaction([
+
+    const ops = [
       prisma.kYC.update({
         where: { id },
-        data: { status: 'REJECTED' },
+        data: { status: 'REJECTED', rejectionReason: reason ?? null, verifiedAt: null },
       }),
-      prisma.user.update({
-        where: { id: kyc.userId },
-        data: { kycStatus: 'REJECTED' },
-      }),
-    ]);
+    ];
+
+    if (kyc.userId) {
+      ops.push(
+        prisma.user.update({
+          where: { id: kyc.userId },
+          data: { kycStatus: 'REJECTED' },
+        })
+      );
+    }
+    if (kyc.builderId) {
+      ops.push(
+        prisma.builder.update({
+          where: { id: kyc.builderId },
+          data: { kycStatus: 'REJECTED', isApproved: false },
+        })
+      );
+    }
+
+    await prisma.$transaction(ops);
+
     res.json({
       success: true,
       message: 'KYC rejected.',

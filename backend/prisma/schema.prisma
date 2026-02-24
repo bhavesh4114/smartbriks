@@ -193,6 +193,7 @@ model KYC {
   documentType   String    @map("document_type")
   documentNumber String    @map("document_number")
   documentImage  String?   @map("document_image")
+  rejectionReason String?  @map("rejection_reason")
   status         KycStatus @default(PENDING)
   verifiedAt     DateTime? @map("verified_at")
   createdAt      DateTime  @default(now()) @map("created_at")
