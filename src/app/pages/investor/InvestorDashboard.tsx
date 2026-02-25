@@ -19,6 +19,20 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
+function getLoggedInInvestorName(): string {
+  if (typeof window === "undefined") return "Investor";
+  try {
+    const raw = localStorage.getItem("user");
+    if (!raw) return "Investor";
+    const parsed = JSON.parse(raw) as { fullName?: string; role?: string };
+    if (parsed?.role !== "INVESTOR" || !parsed.fullName?.trim()) return "Investor";
+    const [firstName] = parsed.fullName.trim().split(/\s+/);
+    return firstName || parsed.fullName.trim() || "Investor";
+  } catch {
+    return "Investor";
+  }
+}
+
 const investmentData = [
   { month: "Jan", value: 10000 },
   { month: "Feb", value: 15000 },
@@ -29,7 +43,7 @@ const investmentData = [
 ];
 
 const recentNotifications = [
-  { id: 1, title: "Payout Received", message: "$2,500 credited to your account", time: "2 hours ago", type: "success" },
+  { id: 1, title: "Payout Received", message: "₹2,500 credited to your account", time: "2 hours ago", type: "success" },
   { id: 2, title: "New Project Available", message: "Luxury Apartments in Downtown", time: "5 hours ago", type: "info" },
   { id: 3, title: "Project Update", message: "Green Valley Villas - 60% complete", time: "1 day ago", type: "warning" },
 ];
@@ -37,10 +51,13 @@ const recentNotifications = [
 export default function InvestorDashboard() {
   const navigate = useNavigate();
   const [kycStatus, setKycStatus] = useState<KycStatus>(() => getKycStatus());
+  const [investorName, setInvestorName] = useState<string>(() => getLoggedInInvestorName());
 
   useEffect(() => {
     const syncKycStatus = () => setKycStatus(getKycStatus());
+    const syncInvestorName = () => setInvestorName(getLoggedInInvestorName());
     syncKycStatus();
+    syncInvestorName();
 
     const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
     if (token) {
@@ -62,10 +79,14 @@ export default function InvestorDashboard() {
 
     window.addEventListener("focus", syncKycStatus);
     window.addEventListener("storage", syncKycStatus);
+    window.addEventListener("focus", syncInvestorName);
+    window.addEventListener("storage", syncInvestorName);
 
     return () => {
       window.removeEventListener("focus", syncKycStatus);
       window.removeEventListener("storage", syncKycStatus);
+      window.removeEventListener("focus", syncInvestorName);
+      window.removeEventListener("storage", syncInvestorName);
     };
   }, []);
 
@@ -75,11 +96,11 @@ export default function InvestorDashboard() {
   return (
     <DashboardLayout
       sidebarItems={investorMenuItems}
-      userName="John Investor"
+      userName={investorName}
       userRole="Investor"
       logoText="RealEstate"
     >
-      <div className="min-w-0 space-y-6 sm:space-y-8">
+      <div className="min-w-0 space-y-5 sm:space-y-8">
         {!isKycApproved && (
           <Alert className="border-amber-300 bg-amber-50 text-amber-900">
             <TriangleAlert className="h-4 w-4" aria-hidden />
@@ -90,7 +111,7 @@ export default function InvestorDashboard() {
                 <Button
                   type="button"
                   onClick={() => navigate("/investor/kyc")}
-                  className="rounded-lg bg-amber-600 text-white hover:bg-amber-700"
+                  className="w-full rounded-lg bg-amber-600 text-white hover:bg-amber-700 sm:w-auto"
                 >
                   Complete KYC
                 </Button>
@@ -100,7 +121,7 @@ export default function InvestorDashboard() {
         )}
 
         <div className="min-w-0">
-          <h1 className="break-words text-2xl font-semibold text-[#111827] sm:text-3xl">Welcome back, John!</h1>
+          <h1 className="break-words text-2xl font-semibold text-[#111827] sm:text-3xl">Welcome back, {investorName}!</h1>
           <p className="mt-1 text-[#6B7280]">Here's your investment overview</p>
         </div>
 
@@ -108,7 +129,7 @@ export default function InvestorDashboard() {
         <div className="grid min-w-0 grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-4">
           <StatCard
             title="Total Invested"
-            value="$45,000"
+            value="₹45,000"
             icon={Wallet}
             iconBg="bg-blue-50"
             iconTextColor="text-[#2563EB]"
@@ -125,7 +146,7 @@ export default function InvestorDashboard() {
           />
           <StatCard
             title="Total Returns"
-            value={isSensitiveLocked ? "Locked until KYC approval" : "$6,750"}
+            value={isSensitiveLocked ? "Locked until KYC approval" : "₹6,750"}
             icon={TrendingUp}
             iconBg="bg-green-50"
             iconTextColor="text-[#16A34A]"
@@ -134,7 +155,7 @@ export default function InvestorDashboard() {
           />
           <StatCard
             title="Pending Payouts"
-            value={isSensitiveLocked ? "Locked until KYC approval" : "$2,500"}
+            value={isSensitiveLocked ? "Locked until KYC approval" : "₹2,500"}
             icon={Clock}
             iconBg="bg-amber-50"
             iconTextColor="text-amber-600"
@@ -187,8 +208,8 @@ export default function InvestorDashboard() {
                 {recentNotifications.map((notification) => (
                   <div key={notification.id} className="flex items-start gap-3 border-b border-[#E5E7EB] pb-3 last:border-0 last:pb-0">
                     <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium text-[#111827]">{notification.title}</p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="break-words font-medium text-[#111827]">{notification.title}</p>
                         <Badge
                           variant={
                             notification.type === "success"
@@ -225,16 +246,16 @@ export default function InvestorDashboard() {
             <CardContent>
               <div className={`space-y-4 ${isSensitiveLocked ? "opacity-50 blur-[1px]" : ""}`}>
                 {[
-                  { name: "Luxury Apartments Downtown", invested: "$12,000", roi: "15%", status: "Active" },
-                  { name: "Green Valley Villas", invested: "$8,500", roi: "12%", status: "Active" },
-                  { name: "Commercial Plaza", invested: "$15,000", roi: "18%", status: "Active" },
+                  { name: "Luxury Apartments Downtown", invested: "₹12,000", roi: "15%", status: "Active" },
+                  { name: "Green Valley Villas", invested: "₹8,500", roi: "12%", status: "Active" },
+                  { name: "Commercial Plaza", invested: "₹15,000", roi: "18%", status: "Active" },
                 ].map((project, index) => (
-                  <div key={index} className="flex items-center justify-between border-b border-[#E5E7EB] pb-3 last:border-0 last:pb-0">
-                    <div>
-                      <p className="font-medium text-[#111827]">{project.name}</p>
+                  <div key={index} className="flex flex-col items-start justify-between gap-2 border-b border-[#E5E7EB] pb-3 last:border-0 last:pb-0 sm:flex-row sm:items-center">
+                    <div className="min-w-0">
+                      <p className="break-words font-medium text-[#111827]">{project.name}</p>
                       <p className="text-sm text-[#6B7280]">Invested: {project.invested}</p>
                     </div>
-                    <div className="text-right">
+                    <div className="text-left sm:text-right">
                       <Badge className="bg-green-50 text-green-700 border-0">{project.roi} ROI</Badge>
                       <p className="mt-1 text-xs text-[#6B7280]">{project.status}</p>
                     </div>

@@ -50,7 +50,7 @@ const GUIDE_ITEMS = [
 
 const HOW_IT_WORKS_STEPS = [
   { step: 1, title: "Browse & Select", desc: "Explore verified properties and choose one that fits your goals and budget." },
-  { step: 2, title: "Invest", desc: "Complete KYC, fund your account, and invest from as little as $500." },
+  { step: 2, title: "Invest", desc: "Complete KYC, fund your account, and invest from as little as ₹500." },
   { step: 3, title: "Earn", desc: "Receive rental income and track appreciation through your dashboard." },
   { step: 4, title: "Exit", desc: "Sell your shares on the platform when you’re ready to exit." },
 ];
@@ -64,7 +64,7 @@ const MARKET_INSIGHTS = [
 const FAQ_ITEMS = [
   {
     q: "What is the minimum investment amount?",
-    a: "You can start investing with as little as $500 on most properties. Some offerings may have higher minimums based on the asset.",
+    a: "You can start investing with as little as ₹500 on most properties. Some offerings may have higher minimums based on the asset.",
   },
   {
     q: "How do I receive returns?",

@@ -118,31 +118,30 @@ export default function Documents() {
       userRole="Investor"
       logoText="RealEstate"
     >
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-semibold text-gray-900">Documents</h1>
+      <div className="min-w-0 space-y-5 sm:space-y-6">
+        <div className="min-w-0">
+          <h1 className="break-words text-2xl font-semibold text-gray-900 sm:text-3xl">Documents</h1>
           <p className="text-gray-500">Access your investment documents and receipts</p>
         </div>
 
-        {/* Summary Cards */}
-        <div className="grid gap-6 md:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 sm:gap-6 xl:grid-cols-4">
           <Card className="bg-white border-gray-200 rounded-2xl shadow-sm">
-            <CardContent className="p-6">
+            <CardContent className="p-5 sm:p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-500">Total Documents</p>
-                  <p className="mt-2 text-3xl font-semibold text-gray-900">{documents.length}</p>
+                  <p className="mt-2 text-2xl font-semibold text-gray-900 sm:text-3xl">{documents.length}</p>
                 </div>
                 <FileText className="h-8 w-8 text-gray-400" />
               </div>
             </CardContent>
           </Card>
           <Card className="bg-white border-gray-200 rounded-2xl shadow-sm">
-            <CardContent className="p-6">
+            <CardContent className="p-5 sm:p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-500">Agreements</p>
-                  <p className="mt-2 text-3xl font-semibold text-gray-900">
+                  <p className="mt-2 text-2xl font-semibold text-gray-900 sm:text-3xl">
                     {documents.filter((d) => d.type === "Agreement").length}
                   </p>
                 </div>
@@ -151,11 +150,11 @@ export default function Documents() {
             </CardContent>
           </Card>
           <Card className="bg-white border-gray-200 rounded-2xl shadow-sm">
-            <CardContent className="p-6">
+            <CardContent className="p-5 sm:p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-500">Receipts</p>
-                  <p className="mt-2 text-3xl font-semibold text-gray-900">
+                  <p className="mt-2 text-2xl font-semibold text-gray-900 sm:text-3xl">
                     {documents.filter((d) => d.type === "Receipt").length}
                   </p>
                 </div>
@@ -164,11 +163,11 @@ export default function Documents() {
             </CardContent>
           </Card>
           <Card className="bg-white border-gray-200 rounded-2xl shadow-sm">
-            <CardContent className="p-6">
+            <CardContent className="p-5 sm:p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-500">Reports</p>
-                  <p className="mt-2 text-3xl font-semibold text-gray-900">
+                  <p className="mt-2 text-2xl font-semibold text-gray-900 sm:text-3xl">
                     {documents.filter((d) => d.type === "Report").length}
                   </p>
                 </div>
@@ -178,16 +177,15 @@ export default function Documents() {
           </Card>
         </div>
 
-        {/* Documents List */}
-        <Card className="bg-white border-gray-200 rounded-2xl shadow-sm">
+        <Card className="min-w-0 bg-white border-gray-200 rounded-2xl shadow-sm">
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <CardTitle className="text-gray-900">All Documents</CardTitle>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="border-gray-200 text-gray-700 hover:bg-slate-50">
+              <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto">
+                <Button variant="outline" size="sm" className="w-full border-gray-200 text-gray-700 hover:bg-slate-50 sm:w-auto">
                   Filter
                 </Button>
-                <Button variant="outline" size="sm" className="border-gray-200 text-gray-700 hover:bg-slate-50">
+                <Button variant="outline" size="sm" className="w-full border-gray-200 text-gray-700 hover:bg-slate-50 sm:w-auto">
                   <Download className="mr-2 h-4 w-4" />
                   Download All
                 </Button>
@@ -199,15 +197,15 @@ export default function Documents() {
               {documents.map((doc) => (
                 <div
                   key={doc.id}
-                  className="flex items-center justify-between rounded-xl border border-gray-200 p-4 transition-colors hover:bg-slate-50"
+                  className="flex flex-col items-start justify-between gap-3 rounded-xl border border-gray-200 p-4 transition-colors hover:bg-slate-50 sm:flex-row sm:items-center"
                 >
-                  <div className="flex items-center gap-4">
+                  <div className="flex min-w-0 items-start gap-4">
                     <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100">
                       <FileText className="h-6 w-6 text-gray-500" />
                     </div>
-                    <div>
-                      <p className="font-medium text-gray-900">{doc.name}</p>
-                      <div className="mt-1 flex items-center gap-3 text-sm text-gray-500">
+                    <div className="min-w-0">
+                      <p className="break-words font-medium text-gray-900">{doc.name}</p>
+                      <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-gray-500">
                         <span>{doc.projectName}</span>
                         <span>•</span>
                         <span>{doc.date}</span>
@@ -216,10 +214,10 @@ export default function Documents() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
                     <Badge className={getTypeColor(doc.type)}>{doc.type}</Badge>
                     <Badge className={getStatusColor(doc.status)}>{doc.status}</Badge>
-                    <div className="flex gap-1">
+                    <div className="ml-auto flex gap-1 sm:ml-0">
                       <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-900">
                         <Eye className="h-4 w-4" />
                       </Button>
@@ -234,8 +232,7 @@ export default function Documents() {
           </CardContent>
         </Card>
 
-        {/* Document Categories */}
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-4 sm:gap-6 md:grid-cols-2">
           <Card className="bg-white border-gray-200 rounded-2xl shadow-sm">
             <CardHeader>
               <CardTitle className="text-gray-900">Recent Agreements</CardTitle>
@@ -250,8 +247,8 @@ export default function Documents() {
                       key={doc.id}
                       className="flex items-center justify-between border-b border-gray-200 pb-3 last:border-0 last:pb-0"
                     >
-                      <div>
-                        <p className="font-medium text-gray-900">{doc.name}</p>
+                      <div className="min-w-0">
+                        <p className="break-words font-medium text-gray-900">{doc.name}</p>
                         <p className="text-sm text-gray-500">{doc.date}</p>
                       </div>
                       <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-900">
@@ -277,8 +274,8 @@ export default function Documents() {
                       key={doc.id}
                       className="flex items-center justify-between border-b border-gray-200 pb-3 last:border-0 last:pb-0"
                     >
-                      <div>
-                        <p className="font-medium text-gray-900">{doc.name}</p>
+                      <div className="min-w-0">
+                        <p className="break-words font-medium text-gray-900">{doc.name}</p>
                         <p className="text-sm text-gray-500">{doc.date}</p>
                       </div>
                       <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-900">

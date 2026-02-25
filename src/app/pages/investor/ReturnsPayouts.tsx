@@ -17,7 +17,7 @@ const payouts = [
   {
     id: 1,
     projectName: "Luxury Apartments Downtown",
-    amount: "$150",
+    amount: "₹150",
     date: "Feb 1, 2026",
     status: "Paid",
     month: "January 2026",
@@ -26,7 +26,7 @@ const payouts = [
   {
     id: 2,
     projectName: "Green Valley Villas",
-    amount: "$102",
+    amount: "₹102",
     date: "Feb 1, 2026",
     status: "Paid",
     month: "January 2026",
@@ -35,7 +35,7 @@ const payouts = [
   {
     id: 3,
     projectName: "Commercial Plaza",
-    amount: "$225",
+    amount: "₹225",
     date: "Feb 1, 2026",
     status: "Paid",
     month: "January 2026",
@@ -44,7 +44,7 @@ const payouts = [
   {
     id: 4,
     projectName: "Beachfront Condos",
-    amount: "$167",
+    amount: "₹167",
     date: "Feb 15, 2026",
     status: "Pending",
     month: "February 2026",
@@ -53,7 +53,7 @@ const payouts = [
   {
     id: 5,
     projectName: "Luxury Apartments Downtown",
-    amount: "$150",
+    amount: "₹150",
     date: "Jan 1, 2026",
     status: "Paid",
     month: "December 2025",
@@ -62,7 +62,7 @@ const payouts = [
   {
     id: 6,
     projectName: "Green Valley Villas",
-    amount: "$102",
+    amount: "₹102",
     date: "Jan 1, 2026",
     status: "Paid",
     month: "December 2025",
@@ -71,7 +71,7 @@ const payouts = [
   {
     id: 7,
     projectName: "Commercial Plaza",
-    amount: "$225",
+    amount: "₹225",
     date: "Jan 1, 2026",
     status: "Paid",
     month: "December 2025",
@@ -80,7 +80,7 @@ const payouts = [
   {
     id: 8,
     projectName: "Tech Park Development",
-    amount: "$267",
+    amount: "₹267",
     date: "Mar 1, 2026",
     status: "Pending",
     month: "February 2026",
@@ -91,11 +91,11 @@ const payouts = [
 export default function ReturnsPayouts() {
   const totalPaid = payouts
     .filter(p => p.status === "Paid")
-    .reduce((sum, p) => sum + parseFloat(p.amount.replace(/[$,]/g, '')), 0);
+    .reduce((sum, p) => sum + parseFloat(p.amount.replace(/[₹$,]/g, '')), 0);
   
   const totalPending = payouts
     .filter(p => p.status === "Pending")
-    .reduce((sum, p) => sum + parseFloat(p.amount.replace(/[$,]/g, '')), 0);
+    .reduce((sum, p) => sum + parseFloat(p.amount.replace(/[₹$,]/g, '')), 0);
 
   return (
     <DashboardLayout
@@ -104,21 +104,21 @@ export default function ReturnsPayouts() {
       userRole="Investor"
       logoText="RealEstate"
     >
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-semibold text-gray-900">Returns & Payouts</h1>
+      <div className="min-w-0 space-y-5 sm:space-y-6">
+        <div className="min-w-0">
+          <h1 className="break-words text-2xl font-semibold text-gray-900 sm:text-3xl">Returns & Payouts</h1>
           <p className="text-gray-500">Track your monthly returns and payout history</p>
         </div>
 
         {/* Summary Cards */}
-        <div className="grid gap-6 md:grid-cols-3">
+        <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
           <Card className="bg-white border-gray-200 rounded-2xl shadow-sm">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-500">Total Paid</p>
                   <p className="mt-2 text-3xl font-semibold text-green-600">
-                    ${totalPaid.toLocaleString()}
+                    ₹{totalPaid.toLocaleString("en-IN")}
                   </p>
                 </div>
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-50">
@@ -133,7 +133,7 @@ export default function ReturnsPayouts() {
                 <div>
                   <p className="text-sm text-gray-500">Pending Payouts</p>
                   <p className="mt-2 text-3xl font-semibold text-amber-600">
-                    ${totalPending.toLocaleString()}
+                    ₹{totalPending.toLocaleString("en-IN")}
                   </p>
                 </div>
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-50">
@@ -148,7 +148,7 @@ export default function ReturnsPayouts() {
                 <div>
                   <p className="text-sm text-gray-500">Total Returns</p>
                   <p className="mt-2 text-3xl font-semibold text-blue-600">
-                    ${(totalPaid + totalPending).toLocaleString()}
+                    ₹{(totalPaid + totalPending).toLocaleString("en-IN")}
                   </p>
                 </div>
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50">
@@ -160,16 +160,16 @@ export default function ReturnsPayouts() {
         </div>
 
         {/* Payouts Table */}
-        <Card className="bg-white border-gray-200 rounded-2xl shadow-sm">
+        <Card className="min-w-0 bg-white border-gray-200 rounded-2xl shadow-sm">
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <CardTitle className="text-gray-900">Payout History</CardTitle>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="border-gray-200 text-gray-700 hover:bg-slate-50">
+              <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto">
+                <Button variant="outline" size="sm" className="w-full border-gray-200 text-gray-700 hover:bg-slate-50 sm:w-auto">
                   <Calendar className="mr-2 h-4 w-4" />
                   Filter by Date
                 </Button>
-                <Button variant="outline" size="sm" className="border-gray-200 text-gray-700 hover:bg-slate-50">
+                <Button variant="outline" size="sm" className="w-full border-gray-200 text-gray-700 hover:bg-slate-50 sm:w-auto">
                   <Download className="mr-2 h-4 w-4" />
                   Export
                 </Button>
@@ -177,7 +177,42 @@ export default function ReturnsPayouts() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
+            <div className="space-y-3 md:hidden">
+              {payouts.map((payout) => (
+                <div key={payout.id} className="rounded-xl border border-gray-200 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-medium text-gray-900">{payout.projectName}</p>
+                      <p className="text-sm text-gray-500">{payout.month}</p>
+                    </div>
+                    <Badge
+                      className={
+                        payout.status === "Paid"
+                          ? "bg-emerald-50 text-green-600 border-0"
+                          : "bg-amber-50 text-amber-600 border-0"
+                      }
+                    >
+                      {payout.status}
+                    </Badge>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                    <p className="text-gray-500">Amount</p>
+                    <p className="text-right font-semibold text-gray-900">{payout.amount}</p>
+                    <p className="text-gray-500">Date</p>
+                    <p className="text-right text-gray-900">{payout.date}</p>
+                    <p className="text-gray-500">Txn ID</p>
+                    <p className="truncate text-right font-mono text-xs text-gray-500">{payout.transactionId}</p>
+                  </div>
+                  {payout.status === "Paid" && (
+                    <Button variant="outline" size="sm" className="mt-3 w-full border-gray-200 text-gray-700 hover:bg-slate-50">
+                      <Download className="mr-2 h-4 w-4" />
+                      Download
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="hidden overflow-x-auto md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -234,13 +269,13 @@ export default function ReturnsPayouts() {
           <CardContent>
             <div className="space-y-4">
               {[
-                { month: "January 2026", amount: "$477", projects: 3, status: "Paid" },
-                { month: "February 2026", amount: "$434", projects: 2, status: "Pending" },
-                { month: "December 2025", amount: "$477", projects: 3, status: "Paid" },
+                { month: "January 2026", amount: "₹477", projects: 3, status: "Paid" },
+                { month: "February 2026", amount: "₹434", projects: 2, status: "Pending" },
+                { month: "December 2025", amount: "₹477", projects: 3, status: "Paid" },
               ].map((month, index) => (
                 <div
                   key={index}
-                  className="flex items-center justify-between rounded-xl border border-gray-200 p-4"
+                  className="flex flex-col items-start justify-between gap-3 rounded-xl border border-gray-200 p-4 sm:flex-row sm:items-center"
                 >
                   <div>
                     <p className="font-medium text-gray-900">{month.month}</p>

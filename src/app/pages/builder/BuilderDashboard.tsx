@@ -150,7 +150,7 @@ export default function BuilderDashboard() {
           />
           <StatCard
             title="Funds Raised"
-            value={isBuilderRestricted ? "Locked until KYC approval" : "$2.4M"}
+            value={isBuilderRestricted ? "Locked until KYC approval" : "₹24,00,000"}
             icon={DollarSign}
             iconBg="bg-orange-50"
             iconTextColor="text-orange-600"
@@ -246,24 +246,24 @@ export default function BuilderDashboard() {
                 {
                   name: "Luxury Apartments Downtown",
                   investors: 45,
-                  raised: "$350,000",
-                  target: "$500,000",
+                  raised: "₹35,00,000",
+                  target: "₹50,00,000",
                   progress: 70,
                   status: "Active",
                 },
                 {
                   name: "Green Valley Villas",
                   investors: 32,
-                  raised: "$280,000",
-                  target: "$300,000",
+                  raised: "₹28,00,000",
+                  target: "₹30,00,000",
                   progress: 93,
                   status: "Active",
                 },
                 {
                   name: "Commercial Plaza",
                   investors: 58,
-                  raised: "$650,000",
-                  target: "$1,000,000",
+                  raised: "₹65,00,000",
+                  target: "₹1,00,00,000",
                   progress: 65,
                   status: "Active",
                 },
@@ -309,10 +309,10 @@ export default function BuilderDashboard() {
           <CardContent>
             <div className={`space-y-3 ${isBuilderRestricted ? "opacity-50 blur-[1px]" : ""}`}>
               {[
-                { name: "John Investor", amount: "$12,000", project: "Luxury Apartments", date: "2 hours ago" },
-                { name: "Sarah Smith", amount: "$8,500", project: "Green Valley Villas", date: "5 hours ago" },
-                { name: "Mike Johnson", amount: "$15,000", project: "Commercial Plaza", date: "1 day ago" },
-                { name: "Emily Brown", amount: "$10,000", project: "Beachfront Condos", date: "2 days ago" },
+                { name: "John Investor", amount: "₹12,000", project: "Luxury Apartments", date: "2 hours ago" },
+                { name: "Sarah Smith", amount: "₹8,500", project: "Green Valley Villas", date: "5 hours ago" },
+                { name: "Mike Johnson", amount: "₹15,000", project: "Commercial Plaza", date: "1 day ago" },
+                { name: "Emily Brown", amount: "₹10,000", project: "Beachfront Condos", date: "2 days ago" },
               ].map((investor, index) => (
                 <div
                   key={index}

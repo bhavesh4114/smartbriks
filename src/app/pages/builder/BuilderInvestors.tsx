@@ -11,7 +11,7 @@ const investors = [
     name: "John Investor",
     email: "john@example.com",
     phone: "+1 (555) 123-4567",
-    totalInvested: "$27,500",
+    totalInvested: "₹27,500",
     projects: 3,
     joinDate: "Jan 15, 2026",
     status: "Active",
@@ -21,7 +21,7 @@ const investors = [
     name: "Sarah Smith",
     email: "sarah@example.com",
     phone: "+1 (555) 234-5678",
-    totalInvested: "$18,500",
+    totalInvested: "₹18,500",
     projects: 2,
     joinDate: "Dec 10, 2025",
     status: "Active",
@@ -31,7 +31,7 @@ const investors = [
     name: "Mike Johnson",
     email: "mike@example.com",
     phone: "+1 (555) 345-6789",
-    totalInvested: "$35,000",
+    totalInvested: "₹35,000",
     projects: 4,
     joinDate: "Nov 5, 2025",
     status: "Active",
@@ -41,7 +41,7 @@ const investors = [
     name: "Emily Brown",
     email: "emily@example.com",
     phone: "+1 (555) 456-7890",
-    totalInvested: "$22,000",
+    totalInvested: "₹22,000",
     projects: 3,
     joinDate: "Oct 20, 2025",
     status: "Active",
@@ -51,7 +51,7 @@ const investors = [
     name: "David Wilson",
     email: "david@example.com",
     phone: "+1 (555) 567-8901",
-    totalInvested: "$15,000",
+    totalInvested: "₹15,000",
     projects: 2,
     joinDate: "Sep 15, 2025",
     status: "Active",
@@ -85,7 +85,7 @@ export default function BuilderInvestors() {
             <CardContent className="p-6">
               <p className="text-sm text-[#6B7280]">Total Invested</p>
               <p className="mt-2 text-3xl font-semibold text-[#16A34A]">
-                ${investors.reduce((sum, inv) => sum + parseFloat(inv.totalInvested.replace(/[$,]/g, '')), 0).toLocaleString()}
+                ₹{investors.reduce((sum, inv) => sum + parseFloat(inv.totalInvested.replace(/[₹$,]/g, '')), 0).toLocaleString("en-IN")}
               </p>
             </CardContent>
           </Card>
@@ -101,7 +101,7 @@ export default function BuilderInvestors() {
             <CardContent className="p-6">
               <p className="text-sm text-[#6B7280]">Avg Investment</p>
               <p className="mt-2 text-3xl font-semibold text-[#111827]">
-                ${(investors.reduce((sum, inv) => sum + parseFloat(inv.totalInvested.replace(/[$,]/g, '')), 0) / investors.length).toLocaleString()}
+                ₹{(investors.reduce((sum, inv) => sum + parseFloat(inv.totalInvested.replace(/[₹$,]/g, '')), 0) / investors.length).toLocaleString("en-IN")}
               </p>
             </CardContent>
           </Card>
@@ -172,7 +172,7 @@ export default function BuilderInvestors() {
           <CardContent className="p-6">
             <div className="space-y-4">
               {investors
-                .sort((a, b) => parseFloat(b.totalInvested.replace(/[$,]/g, '')) - parseFloat(a.totalInvested.replace(/[$,]/g, '')))
+                .sort((a, b) => parseFloat(b.totalInvested.replace(/[₹$,]/g, '')) - parseFloat(a.totalInvested.replace(/[₹$,]/g, '')))
                 .slice(0, 5)
                 .map((investor, index) => (
                   <div

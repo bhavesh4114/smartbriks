@@ -8,6 +8,7 @@ import { Label } from "../../components/ui/label";
 import { Badge } from "../../components/ui/badge";
 import { Building2, Mail, Phone, MapPin, CreditCard, CheckCircle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
+import { formatINR } from "../../utils/currency";
 
 type BuilderProfilePayload = {
   basic_info: {
@@ -46,13 +47,7 @@ function formatMonthYear(value?: string | null): string {
 }
 
 function formatCurrency(value?: string | null): string {
-  const num = Number(value ?? 0);
-  if (Number.isNaN(num)) return "$0";
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(num);
+  return formatINR(value ?? 0);
 }
 
 export default function BuilderProfile() {

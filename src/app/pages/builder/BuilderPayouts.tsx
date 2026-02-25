@@ -10,7 +10,7 @@ const payouts = [
     id: 1,
     project: "Luxury Apartments Downtown",
     investor: "John Investor",
-    amount: "$150",
+    amount: "₹150",
     dueDate: "Feb 1, 2026",
     status: "Paid",
     month: "January 2026",
@@ -19,7 +19,7 @@ const payouts = [
     id: 2,
     project: "Green Valley Villas",
     investor: "Sarah Smith",
-    amount: "$102",
+    amount: "₹102",
     dueDate: "Feb 1, 2026",
     status: "Paid",
     month: "January 2026",
@@ -28,7 +28,7 @@ const payouts = [
     id: 3,
     project: "Commercial Plaza",
     investor: "Mike Johnson",
-    amount: "$225",
+    amount: "₹225",
     dueDate: "Feb 15, 2026",
     status: "Pending",
     month: "February 2026",
@@ -37,7 +37,7 @@ const payouts = [
     id: 4,
     project: "Beachfront Condos",
     investor: "Emily Brown",
-    amount: "$167",
+    amount: "₹167",
     dueDate: "Feb 15, 2026",
     status: "Pending",
     month: "February 2026",
@@ -46,7 +46,7 @@ const payouts = [
     id: 5,
     project: "Tech Park Development",
     investor: "David Wilson",
-    amount: "$133",
+    amount: "₹133",
     dueDate: "Feb 20, 2026",
     status: "Pending",
     month: "February 2026",
@@ -54,8 +54,8 @@ const payouts = [
 ];
 
 export default function BuilderPayouts() {
-  const totalPaid = payouts.filter(p => p.status === "Paid").reduce((sum, p) => sum + parseFloat(p.amount.replace(/[$,]/g, '')), 0);
-  const totalPending = payouts.filter(p => p.status === "Pending").reduce((sum, p) => sum + parseFloat(p.amount.replace(/[$,]/g, '')), 0);
+  const totalPaid = payouts.filter(p => p.status === "Paid").reduce((sum, p) => sum + parseFloat(p.amount.replace(/[₹$,]/g, '')), 0);
+  const totalPending = payouts.filter(p => p.status === "Pending").reduce((sum, p) => sum + parseFloat(p.amount.replace(/[₹$,]/g, '')), 0);
 
   return (
     <BuilderLayout>
@@ -73,7 +73,7 @@ export default function BuilderPayouts() {
                 <div>
                   <p className="text-sm text-[#6B7280]">Total Paid</p>
                   <p className="mt-2 text-3xl font-semibold text-[#16A34A]">
-                    ${totalPaid.toLocaleString()}
+                    ₹{totalPaid.toLocaleString("en-IN")}
                   </p>
                 </div>
                 <CheckCircle className="h-12 w-12 text-[#16A34A]" />
@@ -86,7 +86,7 @@ export default function BuilderPayouts() {
                 <div>
                   <p className="text-sm text-[#6B7280]">Pending Payouts</p>
                   <p className="mt-2 text-3xl font-semibold text-[#F59E0B]">
-                    ${totalPending.toLocaleString()}
+                    ₹{totalPending.toLocaleString("en-IN")}
                   </p>
                 </div>
                 <Clock className="h-12 w-12 text-[#F59E0B]" />
@@ -99,7 +99,7 @@ export default function BuilderPayouts() {
                 <div>
                   <p className="text-sm text-[#6B7280]">Total Payouts</p>
                   <p className="mt-2 text-3xl font-semibold text-[#2563EB]">
-                    ${(totalPaid + totalPending).toLocaleString()}
+                    ₹{(totalPaid + totalPending).toLocaleString("en-IN")}
                   </p>
                 </div>
                 <DollarSign className="h-12 w-12 text-[#2563EB]" />
@@ -199,7 +199,7 @@ export default function BuilderPayouts() {
                 <div className="mt-4 space-y-2 text-sm">
                   <div className="flex justify-between text-[#6B7280]">
                     <span>Total Invested:</span>
-                    <span className="font-medium text-[#111827]">$500,000</span>
+                    <span className="font-medium text-[#111827]">₹50,00,000</span>
                   </div>
                   <div className="flex justify-between text-[#6B7280]">
                     <span>Monthly ROI:</span>
@@ -212,7 +212,7 @@ export default function BuilderPayouts() {
                   <div className="border-t border-[#E5E7EB] pt-2 mt-2">
                     <div className="flex justify-between">
                       <span className="font-medium text-[#111827]">Total Payout:</span>
-                      <span className="text-lg font-semibold text-[#16A34A]">$6,250</span>
+                      <span className="text-lg font-semibold text-[#16A34A]">₹6,250</span>
                     </div>
                   </div>
                 </div>

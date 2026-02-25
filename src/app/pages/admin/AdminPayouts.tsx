@@ -5,9 +5,9 @@ import { Badge } from "../../components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
 
 const payouts = [
-  { id: 1, project: "Luxury Apartments", investor: "John Investor", amount: "$150", date: "Feb 1, 2026", status: "Paid" },
-  { id: 2, project: "Green Valley Villas", investor: "Sarah Smith", amount: "$102", date: "Feb 1, 2026", status: "Paid" },
-  { id: 3, project: "Commercial Plaza", investor: "Mike Johnson", amount: "$225", date: "Feb 15, 2026", status: "Pending" },
+  { id: 1, project: "Luxury Apartments", investor: "John Investor", amount: "₹150", date: "Feb 1, 2026", status: "Paid" },
+  { id: 2, project: "Green Valley Villas", investor: "Sarah Smith", amount: "₹102", date: "Feb 1, 2026", status: "Paid" },
+  { id: 3, project: "Commercial Plaza", investor: "Mike Johnson", amount: "₹225", date: "Feb 15, 2026", status: "Pending" },
 ];
 
 export default function AdminPayouts() {

@@ -147,14 +147,17 @@ export default function AddNewProject() {
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Total Project Cost <span className="text-red-500 ml-0.5">*</span>
                 </label>
-                <input
-                  type="text"
-                  value={formData.totalCost}
-                  onChange={(e) => setFormData({ ...formData, totalCost: e.target.value })}
-                  placeholder="50000000"
-                  className={inputClass}
-                  required
-                />
+                <div className="relative">
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
+                  <input
+                    type="text"
+                    value={formData.totalCost}
+                    onChange={(e) => setFormData({ ...formData, totalCost: e.target.value.replace(/\$/g, "") })}
+                    placeholder="50000000"
+                    className={`${inputClass} pl-8`}
+                    required
+                  />
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
@@ -186,14 +189,17 @@ export default function AddNewProject() {
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Minimum Investment <span className="text-red-500 ml-0.5">*</span>
                 </label>
-                <input
-                  type="text"
-                  value={formData.minInvestment}
-                  onChange={(e) => setFormData({ ...formData, minInvestment: e.target.value })}
-                  placeholder="100000"
-                  className={inputClass}
-                  required
-                />
+                <div className="relative">
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
+                  <input
+                    type="text"
+                    value={formData.minInvestment}
+                    onChange={(e) => setFormData({ ...formData, minInvestment: e.target.value.replace(/\$/g, "") })}
+                    placeholder="100000"
+                    className={`${inputClass} pl-8`}
+                    required
+                  />
+                </div>
               </div>
             </div>
           </section>

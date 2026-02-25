@@ -68,26 +68,27 @@ export default function ProjectsList() {
       userRole="Investor"
       logoText="RealEstate"
     >
-      <div className="min-w-0 space-y-6">
+      <div className="min-w-0 space-y-5 sm:space-y-6">
         <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <h1 className="break-words text-2xl font-semibold text-gray-900 sm:text-3xl">Available Projects</h1>
             <p className="mt-1 text-gray-500">Browse and invest in real estate projects</p>
             {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
           </div>
-          <div className="flex shrink-0 gap-2">
+          <div className="grid w-full shrink-0 grid-cols-2 gap-2 sm:flex sm:w-auto">
             <Button variant="outline" className="min-h-[44px] border-gray-200 text-gray-700 hover:bg-slate-50">Filter</Button>
             <Button variant="outline" className="min-h-[44px] border-gray-200 text-gray-700 hover:bg-slate-50">Sort</Button>
           </div>
         </div>
 
-        <div className="grid min-w-0 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid min-w-0 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {!loading && projects.map((project) => (
             <Card key={project.id} className="min-w-0 overflow-hidden rounded-2xl border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md">
-              <div className="relative h-48 min-h-[180px] overflow-hidden sm:h-48">
+              <div className="relative aspect-[16/10] min-h-[180px] overflow-hidden">
                 <img
                   src={project.images?.[0] ? `/api/uploads/${project.images[0]}` : "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=400&h=300&fit=crop"}
                   alt={project.projectName}
+                  loading="lazy"
                   className="h-full w-full object-cover transition-transform hover:scale-105"
                 />
               </div>
@@ -102,7 +103,7 @@ export default function ProjectsList() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center justify-between text-sm text-gray-600">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-gray-600">
                   <div className="flex items-center gap-1">
                     <Clock className="h-4 w-4" />
                     <span>{project.projectDuration ? `${project.projectDuration} months` : "N/A"}</span>
@@ -126,7 +127,7 @@ export default function ProjectsList() {
                   </div>
                 </div>
 
-                <Link to={`/investor/project/${project.id}`}>
+                <Link to={`/investor/projects/${project.id}`}>
                   <Button className="w-full rounded-xl bg-blue-600 hover:bg-blue-700 text-white">
                     View Details
                   </Button>

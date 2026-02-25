@@ -42,7 +42,7 @@ export default function AdminSettings() {
                   <Input id="commission" type="number" defaultValue="5" />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="minInvestment">Minimum Investment ($)</Label>
+                  <Label htmlFor="minInvestment">Minimum Investment (₹)</Label>
                   <Input id="minInvestment" type="number" defaultValue="5000" />
                 </div>
               </div>

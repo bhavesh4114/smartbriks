@@ -260,7 +260,7 @@ export default function About() {
                 {
                   Icon: Shield,
                   title: "Fractional Ownership",
-                  desc: "Invest from as low as $500 in verified properties—no need for large capital or complex paperwork.",
+                  desc: "Invest from as low as ₹500 in verified properties—no need for large capital or complex paperwork.",
                 },
                 {
                   Icon: Lock,

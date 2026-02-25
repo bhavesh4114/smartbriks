@@ -38,7 +38,7 @@ const STEPS = [
     icon: Wallet,
     title: "Invest Fractionally",
     description:
-      "Buy shares from as low as $500. No large capital or paperwork.",
+      "Buy shares from as low as ₹500. No large capital or paperwork.",
   },
   {
     icon: TrendingUp,
@@ -311,7 +311,7 @@ export default function Home() {
                 className="mt-4 w-full max-w-xl text-base text-slate-300 sm:mt-6 sm:text-lg md:text-xl"
               >
                 Fractional ownership in institutional-grade properties. Start with as
-                little as $500, earn rental income and appreciation, and trade shares
+                little as ₹500, earn rental income and appreciation, and trade shares
                 on a secure platform—no large capital or paperwork.
               </motion.p>
 
@@ -567,7 +567,7 @@ function FloatingPropertyCard() {
             <ul className="flex flex-wrap gap-3 text-sm text-slate-300">
               <li><span className="text-slate-500">Occupancy</span> 98%</li>
               <li><span className="text-slate-500">Target return</span> 12.4%</li>
-              <li><span className="text-slate-500">Min.</span> $500</li>
+              <li><span className="text-slate-500">Min.</span> ₹500</li>
             </ul>
           </div>
         </div>

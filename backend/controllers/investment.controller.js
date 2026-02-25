@@ -18,6 +18,20 @@ export async function invest(req, res) {
       });
     }
 
+    const investor = await prisma.user.findUnique({
+      where: { id: investorId },
+      select: { role: true, isActive: true, kycStatus: true },
+    });
+    if (!investor || investor.role !== 'INVESTOR') {
+      return res.status(403).json({ success: false, message: 'Only investors can invest.' });
+    }
+    if (!investor.isActive) {
+      return res.status(403).json({ success: false, message: 'Your account is blocked.' });
+    }
+    if (investor.kycStatus !== 'VERIFIED') {
+      return res.status(403).json({ success: false, message: 'Only verified investors can invest.' });
+    }
+
     const project = await prisma.project.findUnique({
       where: { id: projId },
     });
@@ -107,7 +121,7 @@ export async function getPortfolio(req, res) {
     const investorId = req.investor?.id ?? req.auth.id;
 
     const investments = await prisma.investment.findMany({
-      where: { userId: investorId, investmentStatus: 'ACTIVE' },
+      where: { userId: investorId },
       include: {
         project: {
           include: {
@@ -116,6 +130,11 @@ export async function getPortfolio(req, res) {
                 id: true,
                 companyName: true,
                 contactPerson: true,
+              },
+            },
+            investments: {
+              select: {
+                investedAmount: true,
               },
             },
           },
@@ -134,7 +153,13 @@ export async function getPortfolio(req, res) {
           location: i.project.location,
           projectStatus: i.project.projectStatus,
           totalShares: i.project.totalShares,
+          totalValue: i.project.totalValue?.toString?.() ?? i.project.totalValue,
           expectedROI: i.project.expectedROI?.toString?.() ?? i.project.expectedROI,
+          projectDurationMonths: i.project.projectDurationMonths,
+          fundsRaised: i.project.investments.reduce(
+            (sum, inv) => sum + Number(inv.investedAmount?.toString?.() ?? inv.investedAmount ?? 0),
+            0
+          ),
           builder: i.project.builder,
         },
       })),

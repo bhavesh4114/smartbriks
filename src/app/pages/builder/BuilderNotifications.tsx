@@ -10,7 +10,7 @@ const notifications = [
     type: "success",
     icon: CheckCircle,
     title: "New Investment Received",
-    message: "John Investor invested $12,000 in Luxury Apartments Downtown",
+    message: "John Investor invested ₹12,000 in Luxury Apartments Downtown",
     time: "1 hour ago",
     read: false,
   },

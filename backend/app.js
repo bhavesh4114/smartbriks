@@ -38,7 +38,9 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/returns', returnRoutes);
 app.use('/api/kyc', kycRoutes);
 app.use('/api/investor', investorKycRoutes);
+app.use('/investor', investorKycRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/admin', adminRoutes);
 
 // 404
 app.use((req, res) => {

@@ -103,6 +103,10 @@ export const router = createBrowserRouter([
     Component: () => React.createElement(InvestorKycGuard, { Component: ProjectsList }),
   },
   {
+    path: "/investor/projects/:projectId",
+    Component: () => React.createElement(InvestorKycGuard, { Component: ProjectDetails }),
+  },
+  {
     path: "/investor/project/:id",
     Component: () => React.createElement(InvestorKycGuard, { Component: ProjectDetails }),
   },

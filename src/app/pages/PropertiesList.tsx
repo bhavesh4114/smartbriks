@@ -5,6 +5,7 @@ import { motion, useReducedMotion } from "motion/react";
 import { SiteHeader } from "../components/layout/SiteHeader";
 import { SiteFooter } from "../components/layout/SiteFooter";
 import { MapPin, ChevronRight } from "lucide-react";
+import { formatINRNumber } from "../utils/currency";
 
 // --------------------------------------------
 // Mock data
@@ -70,10 +71,10 @@ const LOCATIONS = ["All", "New York, NY", "Austin, TX", "Los Angeles, CA", "Miam
 const PROPERTY_TYPES = ["All", "Commercial", "Residential"];
 const INVESTMENT_RANGES = [
   { label: "All", min: 0, max: Infinity },
-  { label: "Up to $1,000", min: 0, max: 1000 },
-  { label: "$1,000 – $2,500", min: 1000, max: 2500 },
-  { label: "$2,500 – $5,000", min: 2500, max: 5000 },
-  { label: "$5,000+", min: 5000, max: Infinity },
+  { label: "Up to ₹1,000", min: 0, max: 1000 },
+  { label: "₹1,000 – ₹2,500", min: 1000, max: 2500 },
+  { label: "₹2,500 – ₹5,000", min: 2500, max: 5000 },
+  { label: "₹5,000+", min: 5000, max: Infinity },
 ];
 const RETURN_RANGES = [
   { label: "Any", min: 0, max: Infinity },
@@ -286,7 +287,7 @@ export default function PropertiesList() {
                         </div>
                         <div className="mt-3 flex flex-wrap gap-3 text-sm">
                           <span className="text-[#6B7280]">
-                            Min. <span className="font-semibold text-[#111827]">${property.minInvestment.toLocaleString()}</span>
+                            Min. <span className="font-semibold text-[#111827]">₹{formatINRNumber(property.minInvestment)}</span>
                           </span>
                           <span className="text-[#6B7280]">
                             <span className="font-semibold text-[#111827]">{property.targetReturn}%</span> target return
@@ -347,7 +348,7 @@ function PropertiesHeroCard() {
             <ul className="flex flex-wrap gap-3 text-sm text-slate-300">
               <li><span className="text-slate-500">Occupancy</span> 94%</li>
               <li><span className="text-slate-500">Target return</span> 11.8%</li>
-              <li><span className="text-slate-500">Min.</span> $1,000</li>
+              <li><span className="text-slate-500">Min.</span> ₹1,000</li>
             </ul>
           </div>
         </div>

@@ -74,7 +74,7 @@ export default function AdminDashboard() {
           />
           <StatCard
             title="Total Investments"
-            value="$50M"
+            value="₹5,00,00,000"
             icon={DollarSign}
             iconBg="bg-amber-50"
             iconTextColor="text-amber-600"
@@ -176,9 +176,9 @@ export default function AdminDashboard() {
             <CardContent>
               <div className="space-y-3">
                 {[
-                  { investor: "John Investor", project: "Luxury Apartments", amount: "$12,000", time: "2 hours ago" },
-                  { investor: "Sarah Smith", project: "Green Valley Villas", amount: "$8,500", time: "5 hours ago" },
-                  { investor: "Mike Johnson", project: "Commercial Plaza", amount: "$15,000", time: "1 day ago" },
+                  { investor: "John Investor", project: "Luxury Apartments", amount: "₹12,000", time: "2 hours ago" },
+                  { investor: "Sarah Smith", project: "Green Valley Villas", amount: "₹8,500", time: "5 hours ago" },
+                  { investor: "Mike Johnson", project: "Commercial Plaza", amount: "₹15,000", time: "1 day ago" },
                 ].map((item, index) => (
                   <div key={index} className="flex items-center justify-between border-b border-[#E5E7EB] pb-3 last:border-0 last:pb-0">
                     <div>

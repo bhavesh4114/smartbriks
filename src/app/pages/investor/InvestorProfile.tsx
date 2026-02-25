@@ -16,36 +16,36 @@ export default function InvestorProfile() {
       userRole="Investor"
       logoText="RealEstate"
     >
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-semibold text-gray-900">My Profile</h1>
+      <div className="min-w-0 space-y-5 sm:space-y-6">
+        <div className="min-w-0">
+          <h1 className="break-words text-2xl font-semibold text-gray-900 sm:text-3xl">My Profile</h1>
           <p className="text-gray-500">Manage your personal information and settings</p>
         </div>
 
         {/* Profile Header */}
         <Card className="bg-white border-gray-200 rounded-2xl shadow-sm">
           <CardContent className="p-6">
-            <div className="flex items-start gap-6">
+            <div className="flex flex-col items-start gap-5 sm:flex-row sm:gap-6">
               <div className="flex h-24 w-24 items-center justify-center rounded-full border border-gray-200 bg-blue-600 text-white text-3xl font-semibold">
                 JD
               </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-3">
-                  <h2 className="text-2xl font-semibold text-gray-900">John Investor</h2>
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                  <h2 className="break-words text-xl font-semibold text-gray-900 sm:text-2xl">John Investor</h2>
                   <Badge className="bg-emerald-50 text-green-600 border-0">
                     <CheckCircle className="mr-1 h-3 w-3" />
                     Verified
                   </Badge>
                 </div>
                 <p className="mt-1 text-gray-500">investor@example.com</p>
-                <div className="mt-4 grid gap-4 md:grid-cols-3">
+                <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   <div>
                     <p className="text-sm text-gray-500">Member Since</p>
                     <p className="font-medium text-gray-900">January 2025</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Total Investments</p>
-                    <p className="font-medium text-gray-900">$45,000</p>
+                    <p className="font-medium text-gray-900">₹45,000</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Active Projects</p>
@@ -53,14 +53,14 @@ export default function InvestorProfile() {
                   </div>
                 </div>
               </div>
-              <Button className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white">Edit Profile Photo</Button>
+              <Button className="w-full rounded-xl bg-blue-600 text-white hover:bg-blue-700 sm:w-auto">Edit Profile Photo</Button>
             </div>
           </CardContent>
         </Card>
 
         {/* Profile Tabs */}
         <Tabs defaultValue="personal" className="space-y-6">
-          <TabsList className="bg-gray-100 border border-gray-200 p-1 rounded-xl">
+          <TabsList className="w-full justify-start gap-1 overflow-x-auto whitespace-nowrap bg-gray-100 border border-gray-200 p-1 rounded-xl">
             <TabsTrigger value="personal" className="data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm rounded-lg">Personal Details</TabsTrigger>
             <TabsTrigger value="bank" className="data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm rounded-lg">Bank Details</TabsTrigger>
             <TabsTrigger value="kyc" className="data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm rounded-lg">KYC Status</TabsTrigger>
@@ -153,9 +153,9 @@ export default function InvestorProfile() {
                     </div>
                   </div>
 
-                  <div className="flex justify-end gap-3">
-                    <Button variant="outline" className="border-gray-200 text-gray-700 hover:bg-slate-50">Cancel</Button>
-                    <Button className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white">
+                  <div className="flex flex-col-reverse justify-end gap-3 sm:flex-row">
+                    <Button variant="outline" className="w-full border-gray-200 text-gray-700 hover:bg-slate-50 sm:w-auto">Cancel</Button>
+                    <Button className="w-full rounded-xl bg-blue-600 text-white hover:bg-blue-700 sm:w-auto">
                       Save Changes
                     </Button>
                   </div>
@@ -214,9 +214,9 @@ export default function InvestorProfile() {
                     </p>
                   </div>
 
-                  <div className="flex justify-end gap-3">
-                    <Button variant="outline" className="border-gray-200 text-gray-700 hover:bg-slate-50">Cancel</Button>
-                    <Button className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white">
+                  <div className="flex flex-col-reverse justify-end gap-3 sm:flex-row">
+                    <Button variant="outline" className="w-full border-gray-200 text-gray-700 hover:bg-slate-50 sm:w-auto">Cancel</Button>
+                    <Button className="w-full rounded-xl bg-blue-600 text-white hover:bg-blue-700 sm:w-auto">
                       Update Bank Details
                     </Button>
                   </div>
@@ -248,10 +248,7 @@ export default function InvestorProfile() {
                       { name: "Address Proof (Utility Bill)", status: "Verified", date: "Jan 5, 2026" },
                       { name: "PAN Card", status: "Verified", date: "Jan 5, 2026" },
                     ].map((doc, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center justify-between rounded-xl border border-gray-200 p-4"
-                      >
+                      <div key={index} className="flex flex-col items-start justify-between gap-3 rounded-xl border border-gray-200 p-4 sm:flex-row sm:items-center">
                         <div>
                           <p className="font-medium">{doc.name}</p>
                           <p className="text-sm text-gray-600">Uploaded on {doc.date}</p>
@@ -306,20 +303,20 @@ export default function InvestorProfile() {
                   </div>
 
                   <div className="rounded-xl border border-gray-200 p-4">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
                       <div>
                         <p className="font-medium text-gray-900">Two-Factor Authentication</p>
                         <p className="text-sm text-gray-500">
                           Add an extra layer of security to your account
                         </p>
                       </div>
-                      <Button variant="outline">Enable 2FA</Button>
+                      <Button variant="outline" className="w-full sm:w-auto">Enable 2FA</Button>
                     </div>
                   </div>
 
-                  <div className="flex justify-end gap-3">
-                    <Button variant="outline" className="border-gray-200 text-gray-700 hover:bg-slate-50">Cancel</Button>
-                    <Button className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white">
+                  <div className="flex flex-col-reverse justify-end gap-3 sm:flex-row">
+                    <Button variant="outline" className="w-full border-gray-200 text-gray-700 hover:bg-slate-50 sm:w-auto">Cancel</Button>
+                    <Button className="w-full rounded-xl bg-blue-600 text-white hover:bg-blue-700 sm:w-auto">
                       Update Password
                     </Button>
                   </div>
