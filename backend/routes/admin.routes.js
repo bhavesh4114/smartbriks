@@ -6,6 +6,11 @@ import {
   approveInvestorKyc,
   rejectInvestorKyc,
 } from '../controllers/adminKyc.controller.js';
+import {
+  listAdminProjects,
+  approveProject,
+  rejectProject,
+} from '../controllers/adminProject.controller.js';
 
 const router = Router();
 
@@ -20,5 +25,10 @@ router.get('/', (req, res) => {
 router.get('/kyc/pending', listPendingInvestorKyc);
 router.patch('/kyc/:id/approve', approveInvestorKyc);
 router.patch('/kyc/:id/reject', rejectInvestorKyc);
+
+// Project approval workflow
+router.get('/projects', listAdminProjects);
+router.post('/projects/:id/approve', approveProject);
+router.post('/projects/:id/reject', rejectProject);
 
 export default router;

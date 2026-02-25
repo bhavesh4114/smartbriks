@@ -24,7 +24,7 @@ export async function invest(req, res) {
     if (!project) {
       return res.status(404).json({ success: false, message: 'Project not found.' });
     }
-    if (project.projectStatus !== 'ACTIVE' && project.projectStatus !== 'DRAFT') {
+    if (project.projectStatus !== 'APPROVED' && project.projectStatus !== 'ACTIVE') {
       return res.status(400).json({
         success: false,
         message: 'Project is not open for investment.',

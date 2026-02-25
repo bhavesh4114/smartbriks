@@ -53,6 +53,12 @@ function maskAccountLast4(account: string): string {
 export default function BuilderKyc() {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
+  const [sensitiveValues, setSensitiveValues] = useState({
+    companyPan: "",
+    accountNumber: "",
+    ifscCode: "",
+    authPersonPan: "",
+  });
   const [kycData, setKycData] = useState({
     companyName: "",
     businessType: "",
@@ -98,8 +104,8 @@ export default function BuilderKyc() {
     if (!kycData.companyName.trim()) nextErrors.companyName = "Company / Builder name is required";
     if (!kycData.businessType) nextErrors.businessType = "Business type is required";
     if (!kycData.yearOfEstablishment.trim()) nextErrors.yearOfEstablishment = "Year of establishment is required";
-    if (!kycData.companyPan.trim()) nextErrors.companyPan = "Company PAN is required";
-    else if (!PAN_REGEX.test(kycData.companyPan.replace(/\s/g, ""))) nextErrors.companyPan = "Invalid PAN format (e.g. ABCDE1234F)";
+    if (!sensitiveValues.companyPan.trim()) nextErrors.companyPan = "Company PAN is required";
+    else if (!PAN_REGEX.test(sensitiveValues.companyPan.replace(/\s/g, ""))) nextErrors.companyPan = "Invalid PAN format (e.g. ABCDE1234F)";
     if (!kycData.officialEmail.trim()) nextErrors.officialEmail = "Official email is required";
     if (!kycData.officialMobile.trim()) nextErrors.officialMobile = "Official mobile is required";
     setErrors(nextErrors);
@@ -130,9 +136,9 @@ export default function BuilderKyc() {
     const nextErrors: Record<string, string> = {};
     if (!kycData.accountHolderName.trim()) nextErrors.accountHolderName = "Account holder name is required";
     if (!kycData.bankName.trim()) nextErrors.bankName = "Bank name is required";
-    if (!kycData.accountNumber.trim()) nextErrors.accountNumber = "Account number is required";
-    if (!kycData.ifscCode.trim()) nextErrors.ifscCode = "IFSC code is required";
-    else if (!IFSC_REGEX.test(kycData.ifscCode.replace(/\s/g, ""))) nextErrors.ifscCode = "Invalid IFSC (e.g. SBIN0001234)";
+    if (!sensitiveValues.accountNumber.trim()) nextErrors.accountNumber = "Account number is required";
+    if (!sensitiveValues.ifscCode.trim()) nextErrors.ifscCode = "IFSC code is required";
+    else if (!IFSC_REGEX.test(sensitiveValues.ifscCode.replace(/\s/g, ""))) nextErrors.ifscCode = "Invalid IFSC (e.g. SBIN0001234)";
     if (!kycData.cancelledChequeFile) nextErrors.cancelledChequeFile = "Cancelled cheque upload is required";
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
@@ -144,8 +150,8 @@ export default function BuilderKyc() {
     if (!kycData.designation.trim()) nextErrors.designation = "Designation is required";
     if (!kycData.authPersonMobile.trim()) nextErrors.authPersonMobile = "Mobile number is required";
     if (!kycData.authPersonEmail.trim()) nextErrors.authPersonEmail = "Email is required";
-    if (!kycData.authPersonPan.trim()) nextErrors.authPersonPan = "PAN is required";
-    else if (!PAN_REGEX.test(kycData.authPersonPan.replace(/\s/g, ""))) nextErrors.authPersonPan = "Invalid PAN format";
+    if (!sensitiveValues.authPersonPan.trim()) nextErrors.authPersonPan = "PAN is required";
+    else if (!PAN_REGEX.test(sensitiveValues.authPersonPan.replace(/\s/g, ""))) nextErrors.authPersonPan = "Invalid PAN format";
     if (!kycData.idProofFile) nextErrors.idProofFile = "ID Proof upload is required";
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
@@ -173,11 +179,19 @@ export default function BuilderKyc() {
       try {
         const formData = new FormData();
         formData.append("documentType", "BUILDER_KYC_SUBMISSION");
-        formData.append("documentNumber", kycData.companyPan?.trim()?.toUpperCase() || "PENDING");
+        formData.append("documentNumber", sensitiveValues.companyPan?.trim()?.toUpperCase() || "PENDING");
+        formData.append("companyPan", sensitiveValues.companyPan?.trim()?.toUpperCase() || "");
+        formData.append("accountNumber", sensitiveValues.accountNumber?.trim() || "");
+        formData.append("ifscCode", sensitiveValues.ifscCode?.trim()?.toUpperCase() || "");
+        formData.append("authPersonPan", sensitiveValues.authPersonPan?.trim()?.toUpperCase() || "");
         const file = documentImageFile;
         if (file) {
           formData.append("documentImage", file);
         }
+        console.log("Builder KYC submit payload (unmasked PAN):", {
+          documentNumber: sensitiveValues.companyPan?.trim()?.toUpperCase() || "PENDING",
+          companyPan: sensitiveValues.companyPan?.trim()?.toUpperCase() || "",
+        });
 
         const res = await fetch("/api/builder/kyc", {
           method: "POST",
@@ -215,12 +229,18 @@ export default function BuilderKyc() {
 
   const handlePanChange = (value: string, field: "company" | "auth") => {
     const upper = value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10);
-    if (field === "company") setKycData((d) => ({ ...d, companyPan: upper }));
-    else setKycData((d) => ({ ...d, authPersonPan: upper }));
+    if (field === "company") {
+      setSensitiveValues((d) => ({ ...d, companyPan: upper }));
+      setKycData((d) => ({ ...d, companyPan: upper }));
+      return;
+    }
+    setSensitiveValues((d) => ({ ...d, authPersonPan: upper }));
+    setKycData((d) => ({ ...d, authPersonPan: upper }));
   };
 
   const handleIfscChange = (value: string) => {
     const upper = value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 11);
+    setSensitiveValues((d) => ({ ...d, ifscCode: upper }));
     setKycData((d) => ({ ...d, ifscCode: upper }));
   };
 
@@ -418,7 +438,7 @@ export default function BuilderKyc() {
                             id="companyPan"
                             type="text"
                             placeholder="ABCDE1234F"
-                            value={kycData.companyPan}
+                            value={sensitiveValues.companyPan}
                             onChange={(e) => handlePanChange(e.target.value, "company")}
                             maxLength={10}
                             className={`${inputClass} pr-12`}
@@ -790,8 +810,12 @@ export default function BuilderKyc() {
                           type="text"
                           inputMode="numeric"
                           placeholder="Account number"
-                          value={kycData.accountNumber}
-                          onChange={(e) => setKycData((d) => ({ ...d, accountNumber: e.target.value.replace(/\D/g, "") }))}
+                          value={sensitiveValues.accountNumber}
+                          onChange={(e) => {
+                            const digits = e.target.value.replace(/\D/g, "");
+                            setSensitiveValues((d) => ({ ...d, accountNumber: digits }));
+                            setKycData((d) => ({ ...d, accountNumber: digits }));
+                          }}
                           className={inputClass}
                           style={inputStyle}
                           onFocus={(e) => onFocus(e, true)}
@@ -805,7 +829,7 @@ export default function BuilderKyc() {
                           id="ifscCode"
                           type="text"
                           placeholder="e.g. SBIN0001234"
-                          value={kycData.ifscCode}
+                          value={sensitiveValues.ifscCode}
                           onChange={(e) => handleIfscChange(e.target.value)}
                           className={inputClass}
                           style={inputStyle}
@@ -928,7 +952,7 @@ export default function BuilderKyc() {
                           id="authPersonPan"
                           type="text"
                           placeholder="ABCDE1234F"
-                          value={kycData.authPersonPan}
+                          value={sensitiveValues.authPersonPan}
                           onChange={(e) => handlePanChange(e.target.value, "auth")}
                           maxLength={10}
                           className={inputClass}
@@ -1007,7 +1031,7 @@ export default function BuilderKyc() {
                         <div><dt className="font-medium text-white/70">Company Name</dt><dd className="text-white">{kycData.companyName || "—"}</dd></div>
                         <div><dt className="font-medium text-white/70">Business Type</dt><dd className="text-white">{BUSINESS_TYPES.find((t) => t.value === kycData.businessType)?.label ?? "—"}</dd></div>
                         <div><dt className="font-medium text-white/70">Year of Establishment</dt><dd className="text-white">{kycData.yearOfEstablishment || "—"}</dd></div>
-                        <div><dt className="font-medium text-white/70">Company PAN</dt><dd className="text-white">{kycData.companyPan ? maskPan(kycData.companyPan) : "—"}</dd></div>
+                        <div><dt className="font-medium text-white/70">Company PAN</dt><dd className="text-white">{sensitiveValues.companyPan ? maskPan(sensitiveValues.companyPan) : "—"}</dd></div>
                         <div><dt className="font-medium text-white/70">Official Email</dt><dd className="text-white">{kycData.officialEmail || "—"}</dd></div>
                         <div><dt className="font-medium text-white/70">Official Mobile</dt><dd className="text-white">{kycData.officialMobile || "—"}</dd></div>
                       </dl>
@@ -1053,8 +1077,8 @@ export default function BuilderKyc() {
                       <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
                         <div><dt className="font-medium text-white/70">Account Holder</dt><dd className="text-white">{kycData.accountHolderName || "—"}</dd></div>
                         <div><dt className="font-medium text-white/70">Bank Name</dt><dd className="text-white">{kycData.bankName || "—"}</dd></div>
-                        <div><dt className="font-medium text-white/70">Account Number</dt><dd className="text-white">{kycData.accountNumber ? "****" + maskAccountLast4(kycData.accountNumber) : "—"}</dd></div>
-                        <div><dt className="font-medium text-white/70">IFSC</dt><dd className="text-white">{kycData.ifscCode || "—"}</dd></div>
+                        <div><dt className="font-medium text-white/70">Account Number</dt><dd className="text-white">{sensitiveValues.accountNumber ? "****" + maskAccountLast4(sensitiveValues.accountNumber) : "—"}</dd></div>
+                        <div><dt className="font-medium text-white/70">IFSC</dt><dd className="text-white">{sensitiveValues.ifscCode ? sensitiveValues.ifscCode.slice(0, 2) + "***" + sensitiveValues.ifscCode.slice(-2) : "—"}</dd></div>
                       </dl>
                     </div>
                     {/* Authorized Person */}
@@ -1070,7 +1094,7 @@ export default function BuilderKyc() {
                         <div><dt className="font-medium text-white/70">Designation</dt><dd className="text-white">{kycData.designation || "—"}</dd></div>
                         <div><dt className="font-medium text-white/70">Mobile</dt><dd className="text-white">{kycData.authPersonMobile || "—"}</dd></div>
                         <div><dt className="font-medium text-white/70">Email</dt><dd className="text-white">{kycData.authPersonEmail || "—"}</dd></div>
-                        <div><dt className="font-medium text-white/70">PAN</dt><dd className="text-white">{kycData.authPersonPan ? maskPan(kycData.authPersonPan) : "—"}</dd></div>
+                        <div><dt className="font-medium text-white/70">PAN</dt><dd className="text-white">{sensitiveValues.authPersonPan ? maskPan(sensitiveValues.authPersonPan) : "—"}</dd></div>
                       </dl>
                     </div>
                     {/* Declaration */}

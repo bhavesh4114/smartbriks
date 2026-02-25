@@ -1,6 +1,110 @@
 import prisma from '../utils/prisma.js';
 import { Decimal } from '@prisma/client/runtime/library';
 
+function parseNumberInput(value) {
+  if (value == null || value === '') return null;
+  const cleaned = String(value).replace(/[^\d.-]/g, '');
+  if (!cleaned) return null;
+  const num = Number(cleaned);
+  return Number.isFinite(num) ? num : null;
+}
+
+function normalizeFeatures(value) {
+  if (!value) return '';
+  return String(value)
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .join(', ');
+}
+
+/**
+ * Create project from builder form
+ * POST /api/builder/projects
+ * multipart/form-data
+ */
+export async function createBuilderProject(req, res) {
+  try {
+    const builderId = req.auth.id;
+    const status = req.body.status === 'PENDING_APPROVAL' ? 'PENDING_APPROVAL' : 'DRAFT';
+    const projectName = (req.body.project_name || '').trim();
+    const location = (req.body.location || '').trim();
+    const description = (req.body.project_description || '').trim();
+    const totalProjectCost = parseNumberInput(req.body.total_project_cost);
+    const expectedRoi = parseNumberInput(req.body.expected_roi);
+    const projectDuration = parseNumberInput(req.body.project_duration);
+    const minimumInvestment = parseNumberInput(req.body.minimum_investment);
+    const keyFeatures = normalizeFeatures(req.body.key_features);
+
+    const builder = await prisma.builder.findUnique({
+      where: { id: builderId },
+      select: { kycStatus: true, isApproved: true },
+    });
+
+    if (!builder) {
+      return res.status(404).json({ success: false, message: 'Builder not found.' });
+    }
+
+    if (status === 'PENDING_APPROVAL' && !(builder.isApproved || builder.kycStatus === 'VERIFIED')) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only verified builders can submit projects for approval.',
+      });
+    }
+
+    if (status === 'PENDING_APPROVAL') {
+      if (!projectName || !location || totalProjectCost == null || expectedRoi == null || projectDuration == null || minimumInvestment == null) {
+        return res.status(400).json({
+          success: false,
+          message: 'project_name, location, total_project_cost, expected_roi, project_duration and minimum_investment are required.',
+        });
+      }
+    }
+
+    const totalValue = new Decimal(totalProjectCost ?? 0);
+    const minInvestment = new Decimal(minimumInvestment ?? 0);
+    const roi = new Decimal(expectedRoi ?? 0);
+    const totalShares = minInvestment.gt(0) ? Number(totalValue.div(minInvestment).toDecimalPlaces(0, 1)) : 1;
+    const safeTotalShares = Number.isFinite(totalShares) && totalShares > 0 ? totalShares : 1;
+    const pricePerShare = safeTotalShares > 0 ? totalValue.div(safeTotalShares) : totalValue;
+
+    const files = Array.isArray(req.files) ? req.files : [];
+    const imageRows = files
+      .filter((f) => f?.filename)
+      .map((f) => ({ imageUrl: `projects/${f.filename}` }));
+
+    const project = await prisma.project.create({
+      data: {
+        builderId,
+        title: projectName || 'Untitled Draft',
+        description: description || 'Draft project',
+        location: location || 'TBD',
+        totalValue,
+        totalShares: safeTotalShares,
+        pricePerShare,
+        minInvestment,
+        expectedROI: roi,
+        projectStatus: status,
+        approvedAt: status === 'APPROVED' ? new Date() : null,
+        rejectionReason: null,
+        projectDurationMonths: projectDuration != null ? Math.max(0, Math.floor(projectDuration)) : null,
+        keyFeatures: keyFeatures || null,
+        images: imageRows.length ? { create: imageRows } : undefined,
+      },
+      include: { images: true },
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: status === 'DRAFT' ? 'Project saved as draft.' : 'Project submitted for approval.',
+      data: serializeProject(project),
+    });
+  } catch (err) {
+    console.error('createBuilderProject:', err);
+    return res.status(500).json({ success: false, message: 'Failed to create project.' });
+  }
+}
+
 /**
  * Create project (Builder only)
  * POST /api/projects
@@ -33,6 +137,7 @@ export async function createProject(req, res) {
     const minInv = minInvestment != null ? new Decimal(minInvestment) : price;
     const roi = expectedROI != null ? new Decimal(expectedROI) : new Decimal(0);
 
+    const normalizedStatus = projectStatus === 'PENDING_APPROVAL' ? 'PENDING_APPROVAL' : projectStatus;
     const project = await prisma.project.create({
       data: {
         builderId,
@@ -44,7 +149,9 @@ export async function createProject(req, res) {
         pricePerShare: price,
         minInvestment: minInv,
         expectedROI: roi,
-        projectStatus: projectStatus || 'DRAFT',
+        projectStatus: normalizedStatus || 'DRAFT',
+        approvedAt: normalizedStatus === 'APPROVED' ? new Date() : null,
+        rejectionReason: null,
         startDate: startDate ? new Date(startDate) : null,
         endDate: endDate ? new Date(endDate) : null,
       },
@@ -78,6 +185,12 @@ export async function updateProject(req, res) {
     });
     if (!existing) {
       return res.status(404).json({ success: false, message: 'Project not found.' });
+    }
+    if (!['DRAFT', 'REJECTED'].includes(existing.projectStatus)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Project can only be edited while in DRAFT or REJECTED status.',
+      });
     }
 
     const allowed = [
@@ -149,7 +262,7 @@ export async function deleteProject(req, res) {
  */
 export async function listProjects(req, res) {
   try {
-    const status = req.query.status || 'ACTIVE';
+    const status = req.query.status || 'APPROVED';
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
     const skip = (page - 1) * limit;
@@ -161,6 +274,7 @@ export async function listProjects(req, res) {
       prisma.project.findMany({
         where,
         include: {
+          images: { select: { imageUrl: true } },
           builder: {
             select: {
               id: true,
@@ -206,6 +320,7 @@ export async function getProjectById(req, res) {
     const project = await prisma.project.findUnique({
       where: { id },
       include: {
+        images: { select: { imageUrl: true } },
         builder: {
           select: {
             id: true,
@@ -249,6 +364,11 @@ function serializeProject(p) {
     expectedROI: p.expectedROI?.toString?.() ?? p.expectedROI,
     projectStatus: p.projectStatus,
     builderId: p.builderId,
+    projectDurationMonths: p.projectDurationMonths ?? null,
+    keyFeatures: p.keyFeatures ?? null,
+    approvedAt: p.approvedAt ?? null,
+    rejectionReason: p.rejectionReason ?? null,
+    images: Array.isArray(p.images) ? p.images.map((img) => img.imageUrl) : [],
     startDate: p.startDate,
     endDate: p.endDate,
     createdAt: p.createdAt,

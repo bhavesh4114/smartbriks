@@ -28,6 +28,9 @@ enum KycStatus {
 
 enum ProjectStatus {
   DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
   ACTIVE
   FUNDED
   COMPLETED
@@ -102,6 +105,10 @@ model Project {
   expectedROI    Decimal       @map("expected_roi") // %
   projectStatus  ProjectStatus @default(DRAFT) @map("project_status")
   builderId      Int           @map("builder_id")
+  projectDurationMonths Int?   @map("project_duration_months")
+  keyFeatures    String?       @map("key_features")
+  approvedAt     DateTime?     @map("approved_at")
+  rejectionReason String?      @map("rejection_reason")
   startDate      DateTime?     @map("start_date")
   endDate        DateTime?     @map("end_date")
   createdAt      DateTime      @default(now()) @map("created_at")
@@ -111,10 +118,23 @@ model Project {
   investments Investment[]
   returns     ReturnDistribution[]
   payments    Payment[]
+  images      ProjectImage[]
 
   @@index([builderId])
   @@index([projectStatus])
   @@map("projects")
+}
+
+model ProjectImage {
+  id        Int      @id @default(autoincrement())
+  projectId Int      @map("project_id")
+  imageUrl  String   @map("image_url")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@map("project_images")
 }
 
 model Investment {
