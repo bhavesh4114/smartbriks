@@ -65,7 +65,7 @@ export default function ProjectDetails() {
   const [error, setError] = useState("");
   const [paymentMessage, setPaymentMessage] = useState("");
   const [isPaying, setIsPaying] = useState(false);
-  const razorpayKeyFromEnv = import.meta.env.VITE_RAZORPAY_KEY_ID as string | undefined;
+  const razorpayKeyFromEnv = import.meta.env.VITE_RAZORPAY_KEY_ID;
 
   useEffect(() => {
     const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
