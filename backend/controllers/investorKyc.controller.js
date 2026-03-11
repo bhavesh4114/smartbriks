@@ -42,8 +42,11 @@ export async function submitInvestorKyc(req, res) {
       body.pan?.trim()?.toUpperCase() ||
       'PENDING';
 
+    const files = req.files || {};
+    const hasFiles = Object.values(files).some((list) => Array.isArray(list) && list.length > 0);
+
     let documentImage = body.documentImage || body.selfieImage || null;
-    if (documentImage && typeof documentImage === 'string' && documentImage.startsWith('data:image')) {
+    if (!hasFiles && documentImage && typeof documentImage === 'string' && documentImage.startsWith('data:image')) {
       const saved = saveBase64Image(documentImage, 'selfie');
       if (saved) documentImage = saved;
     }
@@ -62,16 +65,45 @@ export async function submitInvestorKyc(req, res) {
       });
     }
 
-    await prisma.$transaction([
-      prisma.kYC.create({
-        data: {
+    const kycDocs = [];
+    if (hasFiles) {
+      const map = [
+        { key: 'panCardFile', type: 'INVESTOR_PAN_CARD', number: body.pan?.trim()?.toUpperCase() || documentNumber },
+        { key: 'aadhaarFile', type: 'INVESTOR_AADHAAR_CARD', number: body.aadhaar?.trim() || 'PENDING' },
+        { key: 'bankProofFile', type: 'BANK_PROOF', number: body.accountNumber?.trim() || 'PENDING' },
+        { key: 'selfieFile', type: 'INVESTOR_SELFIE', number: body.pan?.trim()?.toUpperCase() || documentNumber },
+      ];
+      for (const doc of map) {
+        const list = Array.isArray(files[doc.key]) ? files[doc.key] : [];
+        const first = list[0];
+        if (!first?.filename) continue;
+        kycDocs.push({
           userId: investorId,
-          documentType,
-          documentNumber,
-          documentImage: documentImage || null,
+          documentType: doc.type,
+          documentNumber: doc.number,
+          documentImage: `kyc/${first.filename}`,
           status: 'PENDING',
-        },
-      }),
+        });
+      }
+    } else if (documentImage) {
+      kycDocs.push({
+        userId: investorId,
+        documentType,
+        documentNumber,
+        documentImage: documentImage || null,
+        status: 'PENDING',
+      });
+    }
+
+    if (!kycDocs.length) {
+      return res.status(400).json({
+        success: false,
+        message: 'At least one KYC document is required.',
+      });
+    }
+
+    await prisma.$transaction([
+      prisma.kYC.createMany({ data: kycDocs }),
       prisma.user.update({
         where: { id: investorId },
         data: { kycStatus: 'PENDING' },

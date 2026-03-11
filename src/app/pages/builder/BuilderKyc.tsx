@@ -96,7 +96,21 @@ export default function BuilderKyc() {
   const [authMobileVerified, setAuthMobileVerified] = useState(true);
   const [declarationAccepted, setDeclarationAccepted] = useState(false);
   const [isSubmittingKyc, setIsSubmittingKyc] = useState(false);
-  const [documentImageFile, setDocumentImageFile] = useState<File | null>(null);
+  const [documentFiles, setDocumentFiles] = useState<{
+    companyPanFile: File | null;
+    gstCertificateFile: File | null;
+    reraCertificateFile: File | null;
+    cancelledChequeFile: File | null;
+    idProofFile: File | null;
+    selfieWithIdFile: File | null;
+  }>({
+    companyPanFile: null,
+    gstCertificateFile: null,
+    reraCertificateFile: null,
+    cancelledChequeFile: null,
+    idProofFile: null,
+    selfieWithIdFile: null,
+  });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const validateStep1 = () => {
@@ -181,13 +195,14 @@ export default function BuilderKyc() {
         formData.append("documentType", "BUILDER_KYC_SUBMISSION");
         formData.append("documentNumber", sensitiveValues.companyPan?.trim()?.toUpperCase() || "PENDING");
         formData.append("companyPan", sensitiveValues.companyPan?.trim()?.toUpperCase() || "");
+        formData.append("gstNumber", kycData.gstNumber?.trim() || "");
+        formData.append("reraNumber", kycData.reraNumber?.trim() || "");
         formData.append("accountNumber", sensitiveValues.accountNumber?.trim() || "");
         formData.append("ifscCode", sensitiveValues.ifscCode?.trim()?.toUpperCase() || "");
         formData.append("authPersonPan", sensitiveValues.authPersonPan?.trim()?.toUpperCase() || "");
-        const file = documentImageFile;
-        if (file) {
-          formData.append("documentImage", file);
-        }
+        Object.entries(documentFiles).forEach(([key, file]) => {
+          if (file) formData.append(key, file);
+        });
         console.log("Builder KYC submit payload (unmasked PAN):", {
           documentNumber: sensitiveValues.companyPan?.trim()?.toUpperCase() || "PENDING",
           companyPan: sensitiveValues.companyPan?.trim()?.toUpperCase() || "",
@@ -256,8 +271,15 @@ export default function BuilderKyc() {
     const file = e.target.files?.[0];
     if (file) {
       setKycData((d) => ({ ...d, [field]: file.name }));
-      if (field === "idProofFile") {
-        setDocumentImageFile(file);
+      if (
+        field === "companyPanFile" ||
+        field === "gstCertificateFile" ||
+        field === "reraCertificateFile" ||
+        field === "cancelledChequeFile" ||
+        field === "idProofFile" ||
+        field === "selfieWithIdFile"
+      ) {
+        setDocumentFiles((prev) => ({ ...prev, [field]: file }));
       }
     }
     e.target.value = "";

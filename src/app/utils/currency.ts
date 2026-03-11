@@ -1,4 +1,4 @@
-export function formatINR(value: number | string | null | undefined): string {
+﻿export function formatINR(value: number | string | null | undefined): string {
   const num = Number(value ?? 0);
   const safe = Number.isFinite(num) ? num : 0;
   return new Intl.NumberFormat("en-IN", {
@@ -17,7 +17,12 @@ export function formatINRNumber(value: number | string | null | undefined): stri
 }
 
 export function parseCurrencyTextToNumber(value: string): number {
-  const cleaned = (value || "").replace(/[₹$,]/g, "").trim();
+  const cleaned = (value || "").replace(/[\u20B9,]/g, "").trim();
   const num = Number(cleaned);
   return Number.isFinite(num) ? num : 0;
 }
+
+
+
+
+

@@ -1,4 +1,4 @@
-import { BuilderLayout } from "../../components/layout/BuilderLayout";
+﻿import { BuilderLayout } from "../../components/layout/BuilderLayout";
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { Upload } from "lucide-react";
@@ -148,11 +148,11 @@ export default function AddNewProject() {
                   Total Project Cost <span className="text-red-500 ml-0.5">*</span>
                 </label>
                 <div className="relative">
-                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">â‚¹</span>
                   <input
                     type="text"
                     value={formData.totalCost}
-                    onChange={(e) => setFormData({ ...formData, totalCost: e.target.value.replace(/\$/g, "") })}
+                    onChange={(e) => setFormData({ ...formData, totalCost: e.target.value.replace(/\u20B9/g, "") })}
                     placeholder="50000000"
                     className={`${inputClass} pl-8`}
                     required
@@ -190,11 +190,11 @@ export default function AddNewProject() {
                   Minimum Investment <span className="text-red-500 ml-0.5">*</span>
                 </label>
                 <div className="relative">
-                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">â‚¹</span>
                   <input
                     type="text"
                     value={formData.minInvestment}
-                    onChange={(e) => setFormData({ ...formData, minInvestment: e.target.value.replace(/\$/g, "") })}
+                    onChange={(e) => setFormData({ ...formData, minInvestment: e.target.value.replace(/\u20B9/g, "") })}
                     placeholder="100000"
                     className={`${inputClass} pl-8`}
                     required
@@ -299,3 +299,8 @@ export default function AddNewProject() {
     </BuilderLayout>
   );
 }
+
+
+
+
+

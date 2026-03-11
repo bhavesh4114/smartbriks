@@ -1,5 +1,4 @@
-import React from "react";
-import { useState, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
 import { motion, useReducedMotion } from "motion/react";
 import { SiteHeader } from "../components/layout/SiteHeader";
@@ -7,68 +6,16 @@ import { SiteFooter } from "../components/layout/SiteFooter";
 import { MapPin, ChevronRight } from "lucide-react";
 import { formatINRNumber } from "../utils/currency";
 
-// --------------------------------------------
-// Mock data
-// --------------------------------------------
-const PROPERTIES = [
-  {
-    id: "1",
-    name: "Manhattan Heights",
-    location: "New York, NY",
-    type: "Commercial",
-    minInvestment: 500,
-    targetReturn: 12.4,
-    image: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=600&h=400&fit=crop",
-  },
-  {
-    id: "2",
-    name: "Green Valley Villas",
-    location: "Austin, TX",
-    type: "Residential",
-    minInvestment: 1000,
-    targetReturn: 11.2,
-    image: "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=600&h=400&fit=crop",
-  },
-  {
-    id: "3",
-    name: "Commercial Plaza",
-    location: "Los Angeles, CA",
-    type: "Commercial",
-    minInvestment: 2500,
-    targetReturn: 14.8,
-    image: "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=600&h=400&fit=crop",
-  },
-  {
-    id: "4",
-    name: "Beachfront Residences",
-    location: "Miami, FL",
-    type: "Residential",
-    minInvestment: 2000,
-    targetReturn: 10.5,
-    image: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&h=400&fit=crop",
-  },
-  {
-    id: "5",
-    name: "Tech Park Towers",
-    location: "San Francisco, CA",
-    type: "Commercial",
-    minInvestment: 5000,
-    targetReturn: 15.2,
-    image: "https://images.unsplash.com/photo-1577495508048-b635879837f1?w=600&h=400&fit=crop",
-  },
-  {
-    id: "6",
-    name: "Suburban Estates",
-    location: "Seattle, WA",
-    type: "Residential",
-    minInvestment: 750,
-    targetReturn: 9.8,
-    image: "https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=600&h=400&fit=crop",
-  },
-];
+type PropertyItem = {
+  id: number;
+  name: string;
+  location: string;
+  type: string;
+  minInvestment: number;
+  targetReturn: number;
+  image: string;
+};
 
-const LOCATIONS = ["All", "New York, NY", "Austin, TX", "Los Angeles, CA", "Miami, FL", "San Francisco, CA", "Seattle, WA"];
-const PROPERTY_TYPES = ["All", "Commercial", "Residential"];
 const INVESTMENT_RANGES = [
   { label: "All", min: 0, max: Infinity },
   { label: "Up to ₹1,000", min: 0, max: 1000 },
@@ -112,23 +59,74 @@ export default function PropertiesList() {
   const prefersReducedMotion = useReducedMotion();
   const noMotion = prefersReducedMotion ?? false;
 
+  const [properties, setProperties] = useState<PropertyItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [location, setLocation] = useState("All");
   const [propertyType, setPropertyType] = useState("All");
   const [investmentRange, setInvestmentRange] = useState(0);
   const [returnRange, setReturnRange] = useState(0);
-  const [loading] = useState(false);
+
+  useEffect(() => {
+    const fetchProperties = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const res = await fetch("/api/projects?status=APPROVED");
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data?.success) {
+          setError(data?.message || "Failed to load properties.");
+          setProperties([]);
+          return;
+        }
+        const rows = Array.isArray(data?.data) ? data.data : [];
+        const mapped = rows.map((p: any) => {
+          const title = String(p.title ?? "Untitled Project");
+          const inferredType =
+            /commercial|plaza|tower|park|business/i.test(title) ? "Commercial" : "Residential";
+          return {
+            id: Number(p.id),
+            name: title,
+            location: p.location || "TBD",
+            type: p.projectType || inferredType,
+            minInvestment: Number(p.minInvestment ?? 0),
+            targetReturn: Number(p.expectedROI ?? 0),
+            image: p.images?.[0] ? `/api/uploads/${p.images[0]}` : HERO_IMAGE,
+          };
+        });
+        setProperties(mapped);
+      } catch {
+        setError("Network error while loading properties.");
+        setProperties([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProperties();
+  }, []);
+
+  const locations = useMemo(() => {
+    const values = new Set(properties.map((p) => p.location).filter(Boolean));
+    return ["All", ...Array.from(values)];
+  }, [properties]);
+
+  const propertyTypes = useMemo(() => {
+    const values = new Set(properties.map((p) => p.type).filter(Boolean));
+    return ["All", ...Array.from(values)];
+  }, [properties]);
 
   const filtered = useMemo(() => {
     const inv = INVESTMENT_RANGES[investmentRange];
     const ret = RETURN_RANGES[returnRange];
-    return PROPERTIES.filter((p) => {
+    return properties.filter((p) => {
       if (location !== "All" && p.location !== location) return false;
       if (propertyType !== "All" && p.type !== propertyType) return false;
       if (p.minInvestment < inv.min || (inv.max !== Infinity && p.minInvestment > inv.max)) return false;
       if (p.targetReturn < ret.min) return false;
       return true;
     });
-  }, [location, propertyType, investmentRange, returnRange]);
+  }, [location, propertyType, investmentRange, returnRange, properties]);
 
   const cardHover = noMotion ? {} : { y: -4 };
 
@@ -141,11 +139,7 @@ export default function PropertiesList() {
         <section className="relative flex min-h-[70dvh] items-center overflow-hidden py-12 sm:min-h-[85dvh] sm:py-16 md:min-h-[100dvh] lg:py-24">
           {/* Background image + overlay (same as Home) */}
           <div className="absolute inset-0">
-            <img
-              src={HERO_IMAGE}
-              alt=""
-              className="h-full w-full object-cover object-center"
-            />
+            <img src={HERO_IMAGE} alt="" className="h-full w-full object-cover object-center" />
             <div
               className="absolute inset-0 bg-gradient-to-r from-slate-900/95 via-slate-900/80 to-transparent"
               aria-hidden
@@ -197,7 +191,7 @@ export default function PropertiesList() {
                   onChange={(e) => setLocation(e.target.value)}
                   className="w-full rounded-xl border border-[#E5E7EB] bg-white px-4 py-2.5 text-[#111827] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30"
                 >
-                  {LOCATIONS.map((loc) => (
+                  {locations.map((loc) => (
                     <option key={loc} value={loc}>{loc}</option>
                   ))}
                 </select>
@@ -209,7 +203,7 @@ export default function PropertiesList() {
                   onChange={(e) => setPropertyType(e.target.value)}
                   className="w-full rounded-xl border border-[#E5E7EB] bg-white px-4 py-2.5 text-[#111827] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30"
                 >
-                  {PROPERTY_TYPES.map((t) => (
+                  {propertyTypes.map((t) => (
                     <option key={t} value={t}>{t}</option>
                   ))}
                 </select>
@@ -247,6 +241,14 @@ export default function PropertiesList() {
           <div className="mx-auto max-w-6xl">
             {loading ? (
               <LoadingSkeleton />
+            ) : error ? (
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="rounded-2xl border border-[#FCA5A5] bg-red-50 px-6 py-16 text-center text-red-700"
+              >
+                {error}
+              </motion.div>
             ) : filtered.length === 0 ? (
               <motion.div
                 initial={{ opacity: 0, y: 12 }}
@@ -268,7 +270,7 @@ export default function PropertiesList() {
                     whileHover={cardHover}
                     className="group min-w-0 overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-sm transition-shadow hover:shadow-xl"
                   >
-                    <Link to="/investor/login" className="block">
+                    <Link to={`/investor/projects/${property.id}`} className="block">
                       <div className="relative aspect-[4/3] overflow-hidden bg-slate-100">
                         <img
                           src={property.image}

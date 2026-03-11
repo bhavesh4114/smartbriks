@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/ca
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
 import { Progress } from "../../components/ui/progress";
-import { MapPin, Clock, TrendingUp, Building2, DollarSign } from "lucide-react";
+import { MapPin, Clock, TrendingUp, Building2, IndianRupee } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { isKycApproved } from "../../config/kyc";
@@ -51,6 +51,11 @@ type ProjectDetailsData = {
   images: string[];
   amenities: string[];
   timeline: ProjectTimelineItem[];
+  investment_list?: {
+    name: string;
+    amount: number | string;
+    date: string | Date;
+  }[];
 };
 
 export default function ProjectDetails() {
@@ -262,6 +267,12 @@ export default function ProjectDetails() {
     return d.toLocaleDateString("en-IN", { month: "short", year: "numeric" });
   };
 
+  const toShortDate = (value: string | Date) => {
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "N/A";
+    return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+  };
+
   if (loading) {
     return (
       <DashboardLayout
@@ -373,7 +384,7 @@ export default function ProjectDetails() {
                   </div>
                   <div className="flex items-start gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50">
-                      <DollarSign className="h-5 w-5 text-green-600" />
+                      <IndianRupee className="h-5 w-5 text-green-600" />
                     </div>
                     <div>
                       <p className="text-sm text-gray-500">Min Investment</p>
@@ -429,8 +440,8 @@ export default function ProjectDetails() {
             </Card>
           </div>
 
-          <div className="lg:col-span-1">
-            <Card className="bg-white border-gray-200 rounded-2xl shadow-sm lg:sticky lg:top-6">
+          <div className="lg:col-span-1 space-y-4 sm:space-y-6">
+            <Card className="bg-white border-gray-200 rounded-2xl shadow-sm">
               <CardHeader>
                 <CardTitle className="text-gray-900">Investment Details</CardTitle>
               </CardHeader>
@@ -543,6 +554,31 @@ export default function ProjectDetails() {
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white border-gray-200 rounded-2xl shadow-sm">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-gray-900">Recent Investors</CardTitle>
+                  <span className="text-sm text-gray-400">Top 10</span>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {(projectDetails.investment_list ?? []).length === 0 && (
+                  <p className="text-sm text-gray-500">No investments yet.</p>
+                )}
+                {(projectDetails.investment_list ?? []).map((inv, index) => (
+                  <div key={index} className="flex items-center justify-between gap-3 rounded-lg border border-gray-100 px-3 py-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-gray-900">{inv.name}</p>
+                      <p className="text-xs text-gray-500">{toShortDate(inv.date)}</p>
+                    </div>
+                    <div className="shrink-0 text-sm font-semibold text-gray-900">
+                      {formatINR(Number(inv.amount ?? 0))}
+                    </div>
+                  </div>
+                ))}
               </CardContent>
             </Card>
           </div>

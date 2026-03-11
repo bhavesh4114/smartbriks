@@ -1,61 +1,102 @@
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router";
 import { BuilderLayout } from "../../components/layout/BuilderLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
-import { CheckCircle, Clock, DollarSign } from "lucide-react";
+import { CheckCircle, Clock, IndianRupee } from "lucide-react";
+import { formatINR } from "../../utils/currency";
 
-const payouts = [
-  {
-    id: 1,
-    project: "Luxury Apartments Downtown",
-    investor: "John Investor",
-    amount: "₹150",
-    dueDate: "Feb 1, 2026",
-    status: "Paid",
-    month: "January 2026",
-  },
-  {
-    id: 2,
-    project: "Green Valley Villas",
-    investor: "Sarah Smith",
-    amount: "₹102",
-    dueDate: "Feb 1, 2026",
-    status: "Paid",
-    month: "January 2026",
-  },
-  {
-    id: 3,
-    project: "Commercial Plaza",
-    investor: "Mike Johnson",
-    amount: "₹225",
-    dueDate: "Feb 15, 2026",
-    status: "Pending",
-    month: "February 2026",
-  },
-  {
-    id: 4,
-    project: "Beachfront Condos",
-    investor: "Emily Brown",
-    amount: "₹167",
-    dueDate: "Feb 15, 2026",
-    status: "Pending",
-    month: "February 2026",
-  },
-  {
-    id: 5,
-    project: "Tech Park Development",
-    investor: "David Wilson",
-    amount: "₹133",
-    dueDate: "Feb 20, 2026",
-    status: "Pending",
-    month: "February 2026",
-  },
-];
+type PayoutRow = {
+  id: number;
+  project: string;
+  investor: string;
+  amount: number | string;
+  dueDate: string | Date;
+  period: string | Date;
+  status: "Paid" | "Pending";
+};
+
+type PayoutStats = {
+  total_paid: number | string;
+  total_pending: number | string;
+  total_payouts: number | string;
+};
 
 export default function BuilderPayouts() {
-  const totalPaid = payouts.filter(p => p.status === "Paid").reduce((sum, p) => sum + parseFloat(p.amount.replace(/[₹$,]/g, '')), 0);
-  const totalPending = payouts.filter(p => p.status === "Pending").reduce((sum, p) => sum + parseFloat(p.amount.replace(/[₹$,]/g, '')), 0);
+  const navigate = useNavigate();
+  const [payouts, setPayouts] = useState<PayoutRow[]>([]);
+  const [stats, setStats] = useState<PayoutStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if (!token) {
+      navigate("/builder/login", { replace: true });
+      return;
+    }
+
+    const fetchPayouts = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const res = await fetch("/api/returns/payouts", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.status === 401 || res.status === 403) {
+          navigate("/builder/login", { replace: true });
+          return;
+        }
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data?.success) {
+          setError(data?.message || "Failed to load payouts.");
+          setPayouts([]);
+          setStats(null);
+          return;
+        }
+        setPayouts(Array.isArray(data?.data?.payouts) ? data.data.payouts : []);
+        setStats(data?.data?.stats ?? null);
+      } catch {
+        setError("Network error while loading payouts.");
+        setPayouts([]);
+        setStats(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPayouts();
+  }, [navigate]);
+
+  const computedStats = useMemo(() => {
+    const totalPaid = payouts
+      .filter((p) => p.status === "Paid")
+      .reduce((sum, p) => sum + Number(p.amount ?? 0), 0);
+    const totalPending = payouts
+      .filter((p) => p.status === "Pending")
+      .reduce((sum, p) => sum + Number(p.amount ?? 0), 0);
+    return { totalPaid, totalPending, totalPayouts: totalPaid + totalPending };
+  }, [payouts]);
+
+  const summary = {
+    totalPaid: Number(stats?.total_paid ?? computedStats.totalPaid),
+    totalPending: Number(stats?.total_pending ?? computedStats.totalPending),
+    totalPayouts: Number(stats?.total_payouts ?? computedStats.totalPayouts),
+  };
+
+  const toShortDate = (value: string | Date) => {
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "N/A";
+    return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+  };
+
+  const toMonthLabel = (value: string | Date) => {
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "N/A";
+    return d.toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+  };
 
   return (
     <BuilderLayout>
@@ -63,6 +104,7 @@ export default function BuilderPayouts() {
         <div className="min-w-0">
           <h1 className="break-words text-2xl font-semibold text-[#111827] sm:text-3xl">Payout Management</h1>
           <p className="mt-1 text-[#6B7280]">Manage investor returns and payouts</p>
+          {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
         </div>
 
         {/* Summary Cards */}
@@ -73,7 +115,7 @@ export default function BuilderPayouts() {
                 <div>
                   <p className="text-sm text-[#6B7280]">Total Paid</p>
                   <p className="mt-2 text-3xl font-semibold text-[#16A34A]">
-                    ₹{totalPaid.toLocaleString("en-IN")}
+                    {loading ? "Loading..." : formatINR(summary.totalPaid)}
                   </p>
                 </div>
                 <CheckCircle className="h-12 w-12 text-[#16A34A]" />
@@ -86,7 +128,7 @@ export default function BuilderPayouts() {
                 <div>
                   <p className="text-sm text-[#6B7280]">Pending Payouts</p>
                   <p className="mt-2 text-3xl font-semibold text-[#F59E0B]">
-                    ₹{totalPending.toLocaleString("en-IN")}
+                    {loading ? "Loading..." : formatINR(summary.totalPending)}
                   </p>
                 </div>
                 <Clock className="h-12 w-12 text-[#F59E0B]" />
@@ -99,10 +141,10 @@ export default function BuilderPayouts() {
                 <div>
                   <p className="text-sm text-[#6B7280]">Total Payouts</p>
                   <p className="mt-2 text-3xl font-semibold text-[#2563EB]">
-                    ₹{(totalPaid + totalPending).toLocaleString("en-IN")}
+                    {loading ? "Loading..." : formatINR(summary.totalPayouts)}
                   </p>
                 </div>
-                <DollarSign className="h-12 w-12 text-[#2563EB]" />
+                <IndianRupee className="h-12 w-12 text-[#2563EB]" />
               </div>
             </CardContent>
           </Card>
@@ -137,9 +179,9 @@ export default function BuilderPayouts() {
                     <TableRow key={payout.id} className="border-[#E5E7EB] hover:bg-slate-50">
                       <TableCell className="font-medium text-[#111827]">{payout.project}</TableCell>
                       <TableCell className="text-[#6B7280]">{payout.investor}</TableCell>
-                      <TableCell className="text-[#6B7280]">{payout.month}</TableCell>
-                      <TableCell className="font-semibold text-[#111827]">{payout.amount}</TableCell>
-                      <TableCell className="text-[#6B7280]">{payout.dueDate}</TableCell>
+                      <TableCell className="text-[#6B7280]">{toMonthLabel(payout.period)}</TableCell>
+                      <TableCell className="font-semibold text-[#111827]">{formatINR(payout.amount)}</TableCell>
+                      <TableCell className="text-[#6B7280]">{toShortDate(payout.dueDate)}</TableCell>
                       <TableCell>
                         <Badge
                           className={
@@ -160,6 +202,13 @@ export default function BuilderPayouts() {
                       </TableCell>
                     </TableRow>
                   ))}
+                  {!loading && payouts.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={7} className="py-6 text-center text-[#6B7280]">
+                        No payouts found yet.
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             </div>

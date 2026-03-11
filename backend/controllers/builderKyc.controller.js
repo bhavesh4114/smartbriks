@@ -11,7 +11,7 @@ export async function submitBuilderKyc(req, res) {
     const builderId = req.auth.id;
     const documentType = req.body.documentType?.trim();
     const documentNumber = req.body.documentNumber?.trim();
-    const file = req.file;
+    const files = req.files || {};
 
     if (!documentType || !documentNumber) {
       return res.status(400).json({
@@ -20,10 +20,11 @@ export async function submitBuilderKyc(req, res) {
       });
     }
 
-    if (!file || !file.filename) {
+    const hasFiles = Object.values(files).some((list) => Array.isArray(list) && list.length > 0);
+    if (!hasFiles) {
       return res.status(400).json({
         success: false,
-        message: 'documentImage file is required.',
+        message: 'At least one document file is required.',
       });
     }
 
@@ -41,17 +42,53 @@ export async function submitBuilderKyc(req, res) {
       });
     }
 
-    const documentImagePath = `kyc/${file.filename}`;
-
     await prisma.$transaction([
-      prisma.kYC.create({
-        data: {
-          builderId,
-          documentType,
-          documentNumber,
-          documentImage: documentImagePath,
-          status: 'PENDING',
-        },
+      prisma.kYC.createMany({
+        data: [
+          {
+            key: 'companyPanFile',
+            type: 'COMPANY_PAN_CARD',
+            number: req.body.companyPan?.trim() || documentNumber || 'PENDING',
+          },
+          {
+            key: 'gstCertificateFile',
+            type: 'GST_CERTIFICATE',
+            number: req.body.gstNumber?.trim() || 'PENDING',
+          },
+          {
+            key: 'reraCertificateFile',
+            type: 'RERA_CERTIFICATE',
+            number: req.body.reraNumber?.trim() || 'PENDING',
+          },
+          {
+            key: 'cancelledChequeFile',
+            type: 'CANCELLED_CHEQUE',
+            number: req.body.accountNumber?.trim() || 'PENDING',
+          },
+          {
+            key: 'idProofFile',
+            type: 'AUTHORIZED_PERSON_ID',
+            number: req.body.authPersonPan?.trim() || 'PENDING',
+          },
+          {
+            key: 'selfieWithIdFile',
+            type: 'AUTHORIZED_PERSON_SELFIE',
+            number: req.body.authPersonPan?.trim() || 'PENDING',
+          },
+        ]
+          .map((doc) => {
+            const list = Array.isArray(files[doc.key]) ? files[doc.key] : [];
+            const first = list[0];
+            if (!first?.filename) return null;
+            return {
+              builderId,
+              documentType: doc.type,
+              documentNumber: doc.number,
+              documentImage: `kyc/${first.filename}`,
+              status: 'PENDING',
+            };
+          })
+          .filter(Boolean),
       }),
       prisma.builder.update({
         where: { id: builderId },

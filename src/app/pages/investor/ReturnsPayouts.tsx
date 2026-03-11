@@ -1,4 +1,4 @@
-import { DashboardLayout } from "../../components/layout/DashboardLayout";
+﻿import { DashboardLayout } from "../../components/layout/DashboardLayout";
 import { investorMenuItems } from "../../config/menuItems";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
@@ -12,12 +12,13 @@ import {
 } from "../../components/ui/table";
 import { Button } from "../../components/ui/button";
 import { Download, Calendar } from "lucide-react";
+import { formatINR } from "../../utils/currency";
 
 const payouts = [
   {
     id: 1,
     projectName: "Luxury Apartments Downtown",
-    amount: "₹150",
+    amount: 150,
     date: "Feb 1, 2026",
     status: "Paid",
     month: "January 2026",
@@ -26,7 +27,7 @@ const payouts = [
   {
     id: 2,
     projectName: "Green Valley Villas",
-    amount: "₹102",
+    amount: 102,
     date: "Feb 1, 2026",
     status: "Paid",
     month: "January 2026",
@@ -35,7 +36,7 @@ const payouts = [
   {
     id: 3,
     projectName: "Commercial Plaza",
-    amount: "₹225",
+    amount: 225,
     date: "Feb 1, 2026",
     status: "Paid",
     month: "January 2026",
@@ -44,7 +45,7 @@ const payouts = [
   {
     id: 4,
     projectName: "Beachfront Condos",
-    amount: "₹167",
+    amount: 167,
     date: "Feb 15, 2026",
     status: "Pending",
     month: "February 2026",
@@ -53,7 +54,7 @@ const payouts = [
   {
     id: 5,
     projectName: "Luxury Apartments Downtown",
-    amount: "₹150",
+    amount: 150,
     date: "Jan 1, 2026",
     status: "Paid",
     month: "December 2025",
@@ -62,7 +63,7 @@ const payouts = [
   {
     id: 6,
     projectName: "Green Valley Villas",
-    amount: "₹102",
+    amount: 102,
     date: "Jan 1, 2026",
     status: "Paid",
     month: "December 2025",
@@ -71,7 +72,7 @@ const payouts = [
   {
     id: 7,
     projectName: "Commercial Plaza",
-    amount: "₹225",
+    amount: 225,
     date: "Jan 1, 2026",
     status: "Paid",
     month: "December 2025",
@@ -80,7 +81,7 @@ const payouts = [
   {
     id: 8,
     projectName: "Tech Park Development",
-    amount: "₹267",
+    amount: 267,
     date: "Mar 1, 2026",
     status: "Pending",
     month: "February 2026",
@@ -91,11 +92,11 @@ const payouts = [
 export default function ReturnsPayouts() {
   const totalPaid = payouts
     .filter(p => p.status === "Paid")
-    .reduce((sum, p) => sum + parseFloat(p.amount.replace(/[₹$,]/g, '')), 0);
+    .reduce((sum, p) => sum + p.amount, 0);
   
   const totalPending = payouts
     .filter(p => p.status === "Pending")
-    .reduce((sum, p) => sum + parseFloat(p.amount.replace(/[₹$,]/g, '')), 0);
+    .reduce((sum, p) => sum + p.amount, 0);
 
   return (
     <DashboardLayout
@@ -118,7 +119,7 @@ export default function ReturnsPayouts() {
                 <div>
                   <p className="text-sm text-gray-500">Total Paid</p>
                   <p className="mt-2 text-3xl font-semibold text-green-600">
-                    ₹{totalPaid.toLocaleString("en-IN")}
+                    {formatINR(totalPaid)}
                   </p>
                 </div>
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-50">
@@ -133,7 +134,7 @@ export default function ReturnsPayouts() {
                 <div>
                   <p className="text-sm text-gray-500">Pending Payouts</p>
                   <p className="mt-2 text-3xl font-semibold text-amber-600">
-                    ₹{totalPending.toLocaleString("en-IN")}
+                    {formatINR(totalPending)}
                   </p>
                 </div>
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-50">
@@ -148,7 +149,7 @@ export default function ReturnsPayouts() {
                 <div>
                   <p className="text-sm text-gray-500">Total Returns</p>
                   <p className="mt-2 text-3xl font-semibold text-blue-600">
-                    ₹{(totalPaid + totalPending).toLocaleString("en-IN")}
+                    {formatINR(totalPaid + totalPending)}
                   </p>
                 </div>
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50">
@@ -197,7 +198,7 @@ export default function ReturnsPayouts() {
                   </div>
                   <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
                     <p className="text-gray-500">Amount</p>
-                    <p className="text-right font-semibold text-gray-900">{payout.amount}</p>
+                    <p className="text-right font-semibold text-gray-900">{formatINR(payout.amount)}</p>
                     <p className="text-gray-500">Date</p>
                     <p className="text-right text-gray-900">{payout.date}</p>
                     <p className="text-gray-500">Txn ID</p>
@@ -230,7 +231,7 @@ export default function ReturnsPayouts() {
                     <TableRow key={payout.id} className="border-gray-200">
                       <TableCell className="font-medium text-gray-900">{payout.projectName}</TableCell>
                       <TableCell className="text-gray-600">{payout.month}</TableCell>
-                      <TableCell className="font-semibold text-gray-900">{payout.amount}</TableCell>
+                      <TableCell className="font-semibold text-gray-900">{formatINR(payout.amount)}</TableCell>
                       <TableCell className="text-gray-600">{payout.date}</TableCell>
                       <TableCell className="font-mono text-sm text-gray-500">
                         {payout.transactionId}
@@ -269,9 +270,9 @@ export default function ReturnsPayouts() {
           <CardContent>
             <div className="space-y-4">
               {[
-                { month: "January 2026", amount: "₹477", projects: 3, status: "Paid" },
-                { month: "February 2026", amount: "₹434", projects: 2, status: "Pending" },
-                { month: "December 2025", amount: "₹477", projects: 3, status: "Paid" },
+                { month: "January 2026", amount: 477, projects: 3, status: "Paid" },
+                { month: "February 2026", amount: 434, projects: 2, status: "Pending" },
+                { month: "December 2025", amount: 477, projects: 3, status: "Paid" },
               ].map((month, index) => (
                 <div
                   key={index}
@@ -282,7 +283,7 @@ export default function ReturnsPayouts() {
                     <p className="text-sm text-gray-500">{month.projects} projects</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xl font-semibold text-gray-900">{month.amount}</p>
+                    <p className="text-xl font-semibold text-gray-900">{formatINR(month.amount)}</p>
                     <Badge
                       className={
                         month.status === "Paid"
@@ -302,3 +303,8 @@ export default function ReturnsPayouts() {
     </DashboardLayout>
   );
 }
+
+
+
+
+

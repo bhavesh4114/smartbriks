@@ -97,6 +97,13 @@ function serializeProjectDetails(p) {
     progressPercentage,
     startDate: p.startDate ?? null,
     endDate: p.endDate ?? null,
+    investment_list: Array.isArray(p.investments)
+      ? p.investments.map((inv) => ({
+          name: inv.user?.fullName ?? 'Investor',
+          amount: inv.investedAmount?.toString?.() ?? inv.investedAmount ?? 0,
+          date: inv.createdAt,
+        }))
+      : [],
   };
 }
 
@@ -145,7 +152,15 @@ export async function getApprovedProjectDetailsForInvestor(req, res) {
       where: { id: projectId },
       include: {
         builder: { select: { id: true, companyName: true } },
-        investments: { select: { investedAmount: true } },
+        investments: {
+          select: {
+            investedAmount: true,
+            createdAt: true,
+            user: { select: { fullName: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 10,
+        },
         images: { select: { imageUrl: true } },
       },
     });

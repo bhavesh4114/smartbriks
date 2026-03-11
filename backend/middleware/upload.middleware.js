@@ -30,6 +30,18 @@ export const uploadKycDocument = multer({
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
 }).single('documentImage');
 
+export const uploadKycDocuments = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB per file
+}).fields([
+  { name: 'companyPanFile', maxCount: 1 },
+  { name: 'gstCertificateFile', maxCount: 1 },
+  { name: 'reraCertificateFile', maxCount: 1 },
+  { name: 'cancelledChequeFile', maxCount: 1 },
+  { name: 'idProofFile', maxCount: 1 },
+  { name: 'selfieWithIdFile', maxCount: 1 },
+]);
+
 const projectStorage = multer.diskStorage({
   destination(_req, _file, cb) {
     cb(null, projectUploadDir);
@@ -45,3 +57,13 @@ export const uploadProjectImages = multer({
   storage: projectStorage,
   limits: { fileSize: 8 * 1024 * 1024 }, // 8MB per image
 }).array('project_images', 10);
+
+export const uploadInvestorKycDocuments = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB per file
+}).fields([
+  { name: 'panCardFile', maxCount: 1 },
+  { name: 'aadhaarFile', maxCount: 1 },
+  { name: 'bankProofFile', maxCount: 1 },
+  { name: 'selfieFile', maxCount: 1 },
+]);

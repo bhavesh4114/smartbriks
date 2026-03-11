@@ -134,3 +134,56 @@ export async function getDistributionsByProject(req, res) {
     res.status(500).json({ success: false, message: 'Failed to fetch distributions.' });
   }
 }
+
+/**
+ * List payouts for builder's projects
+ * GET /api/returns/payouts
+ */
+export async function getBuilderPayouts(req, res) {
+  try {
+    const builderId = req.auth.id;
+    const returns = await prisma.userReturn.findMany({
+      where: { returnDistribution: { project: { builderId } } },
+      include: {
+        user: { select: { id: true, fullName: true } },
+        returnDistribution: {
+          select: {
+            distributionDate: true,
+            project: { select: { id: true, title: true } },
+          },
+        },
+      },
+      orderBy: { creditedAt: 'desc' },
+    });
+
+    const payouts = returns.map((ur) => ({
+      id: ur.id,
+      project: ur.returnDistribution?.project?.title ?? 'Unknown Project',
+      investor: ur.user?.fullName ?? 'Investor',
+      amount: ur.amount?.toString?.() ?? ur.amount,
+      dueDate: ur.returnDistribution?.distributionDate ?? ur.creditedAt,
+      period: ur.returnDistribution?.distributionDate ?? ur.creditedAt,
+      status: 'Paid',
+    }));
+
+    const totalPaid = returns.reduce((sum, ur) => {
+      const amt = Number(ur.amount?.toString?.() ?? ur.amount ?? 0);
+      return sum + (Number.isFinite(amt) ? amt : 0);
+    }, 0);
+
+    return res.json({
+      success: true,
+      data: {
+        payouts,
+        stats: {
+          total_paid: totalPaid?.toString?.() ?? totalPaid,
+          total_pending: '0',
+          total_payouts: totalPaid?.toString?.() ?? totalPaid,
+        },
+      },
+    });
+  } catch (err) {
+    console.error('getBuilderPayouts:', err);
+    return res.status(500).json({ success: false, message: 'Failed to fetch payouts.' });
+  }
+}

@@ -68,6 +68,7 @@ const RISK_APPETITE_LABELS: Record<string, string> = {
 
 export default function InvestorKyc() {
   const navigate = useNavigate();
+  const STORAGE_KEY = "investor_kyc_draft_v1";
   const [currentStep, setCurrentStep] = useState(1);
   const [kycData, setKycData] = useState({
     fullName: "",
@@ -77,6 +78,8 @@ export default function InvestorKyc() {
     gender: "",
     pan: "",
     aadhaar: "",
+    panCardFile: "",
+    aadhaarFile: "",
     // Step 2 – Address
     resAddressLine1: "",
     resAddressLine2: "",
@@ -97,6 +100,7 @@ export default function InvestorKyc() {
     ifscCode: "",
     accountType: "",
     upiId: "",
+    bankProofFile: "",
     // Step 4 – Income & Risk
     annualIncome: "",
     occupation: "",
@@ -104,6 +108,17 @@ export default function InvestorKyc() {
     riskAppetite: "",
     // Step 5 – Selfie
     selfieImage: "",
+  });
+  const [documentFiles, setDocumentFiles] = useState<{
+    panCardFile: File | null;
+    aadhaarFile: File | null;
+    bankProofFile: File | null;
+    selfieFile: File | null;
+  }>({
+    panCardFile: null,
+    aadhaarFile: null,
+    bankProofFile: null,
+    selfieFile: null,
   });
   const [sameAsPermanent, setSameAsPermanent] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -125,9 +140,11 @@ export default function InvestorKyc() {
     if (!kycData.gender) nextErrors.gender = "Please select gender";
     if (!kycData.pan.trim()) nextErrors.pan = "PAN is required";
     else if (!PAN_REGEX.test(kycData.pan.replace(/\s/g, ""))) nextErrors.pan = "Invalid PAN format (e.g. ABCDE1234F)";
+    if (!kycData.panCardFile) nextErrors.panCardFile = "PAN card upload is required";
     const aadhaarDigits = kycData.aadhaar.replace(/\s/g, "");
     if (!aadhaarDigits) nextErrors.aadhaar = "Aadhaar number is required";
     else if (!AADHAAR_REGEX.test(aadhaarDigits)) nextErrors.aadhaar = "Aadhaar must be 12 digits";
+    if (!kycData.aadhaarFile) nextErrors.aadhaarFile = "Aadhaar upload is required";
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   };
@@ -155,6 +172,7 @@ export default function InvestorKyc() {
     if (!kycData.ifscCode.trim()) nextErrors.ifscCode = "IFSC code is required";
     else if (!IFSC_REGEX.test(kycData.ifscCode.replace(/\s/g, ""))) nextErrors.ifscCode = "Invalid IFSC (e.g. SBIN0001234)";
     if (!kycData.accountType) nextErrors.accountType = "Please select account type";
+    if (!kycData.bankProofFile) nextErrors.bankProofFile = "Bank proof upload is required";
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   };
@@ -195,22 +213,57 @@ export default function InvestorKyc() {
         return;
       }
       try {
+        const formData = new FormData();
+        formData.append("documentType", "KYC_SUBMISSION");
+        formData.append("documentNumber", kycData.pan?.trim()?.toUpperCase() || "PENDING");
+        formData.append("pan", kycData.pan?.trim()?.toUpperCase() || "");
+        formData.append("aadhaar", kycData.aadhaar?.replace(/\s/g, "") || "");
+        formData.append("accountNumber", kycData.accountNumber?.trim() || "");
+        Object.entries(documentFiles).forEach(([key, file]) => {
+          if (file) formData.append(key, file);
+        });
+        if (!documentFiles.selfieFile && kycData.selfieImage?.startsWith("data:image")) {
+          const arr = kycData.selfieImage.split(",");
+          const mime = arr[0].match(/:(.*?);/)?.[1] || "image/jpeg";
+          const bstr = atob(arr[1]);
+          let n = bstr.length;
+          const u8arr = new Uint8Array(n);
+          while (n--) u8arr[n] = bstr.charCodeAt(n);
+          formData.append("selfieFile", new File([u8arr], "selfie.jpg", { type: mime }));
+        }
         const res = await fetch("/api/investor/kyc", {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({
-            documentType: "KYC_SUBMISSION",
-            documentNumber: kycData.pan?.trim()?.toUpperCase() || "PENDING",
-            selfieImage: kycData.selfieImage || null,
-          }),
+          body: formData,
         });
         const data = await res.json().catch(() => ({}));
         if (res.ok && data.success) {
           syncInvestorUserKycStatus("pending");
+          try {
+            localStorage.removeItem(STORAGE_KEY);
+          } catch {}
           navigate("/investor/kyc/status", { replace: true });
+          return;
+        }
+        if (res.status === 401) {
+          setErrors((e) => ({ ...e, declaration: "Session expired. Please log in again." }));
+          navigate("/investor/login", { replace: true });
+          return;
+        }
+        if (res.status === 403) {
+          setErrors((e) => ({
+            ...e,
+            declaration: "Insufficient permissions. Please log in with an Investor account.",
+          }));
+          return;
+        }
+        if (res.status === 409) {
+          setErrors((e) => ({
+            ...e,
+            declaration: "You already have a pending KYC submission. Please wait for approval.",
+          }));
           return;
         }
         setErrors((e) => ({
@@ -254,6 +307,35 @@ export default function InvestorKyc() {
   }, []);
 
   useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (parsed?.kycData) setKycData((d) => ({ ...d, ...parsed.kycData }));
+      if (typeof parsed?.currentStep === "number") setCurrentStep(parsed.currentStep);
+      if (typeof parsed?.sameAsPermanent === "boolean") setSameAsPermanent(parsed.sameAsPermanent);
+      if (typeof parsed?.declarationAccepted === "boolean") setDeclarationAccepted(parsed.declarationAccepted);
+    } catch {
+      // ignore corrupted drafts
+    }
+  }, []);
+
+  useEffect(() => {
+    const payload = {
+      kycData,
+      currentStep,
+      sameAsPermanent,
+      declarationAccepted,
+      savedAt: Date.now(),
+    };
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    } catch {
+      // ignore storage quota errors
+    }
+  }, [kycData, currentStep, sameAsPermanent, declarationAccepted]);
+
+  useEffect(() => {
     if (currentStep === 5 && !kycData.selfieImage) startCamera();
     return () => { stopCamera(); };
   }, [currentStep, kycData.selfieImage]);
@@ -275,6 +357,7 @@ export default function InvestorKyc() {
   const handleSelfieFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !file.type.startsWith("image/")) return;
+    setDocumentFiles((prev) => ({ ...prev, selfieFile: file }));
     const reader = new FileReader();
     reader.onload = () => {
       stopCamera();
@@ -286,7 +369,19 @@ export default function InvestorKyc() {
 
   const retakeSelfie = () => {
     setKycData((d) => ({ ...d, selfieImage: "" }));
+    setDocumentFiles((prev) => ({ ...prev, selfieFile: null }));
     setCameraError(null);
+  };
+
+  const handleDocUpload = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    field: "panCardFile" | "aadhaarFile" | "bankProofFile"
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setDocumentFiles((prev) => ({ ...prev, [field]: file }));
+    setKycData((d) => ({ ...d, [field]: file.name }));
+    e.target.value = "";
   };
 
   const toggleSourceOfFunds = (value: string) => {
@@ -593,6 +688,43 @@ export default function InvestorKyc() {
                   {errors.aadhaar && <p className="text-sm text-red-300">{errors.aadhaar}</p>}
                 </motion.div>
 
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-white/90">Upload PAN Card</Label>
+                    <div className="flex items-center gap-3">
+                      <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-white/20 bg-white/10 py-3 px-4 text-sm font-medium text-white hover:bg-white/15">
+                        <Upload className="h-4 w-4" />
+                        Choose file
+                        <input
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          className="hidden"
+                          onChange={(e) => handleDocUpload(e, "panCardFile")}
+                        />
+                      </label>
+                      {kycData.panCardFile && <span className="text-sm text-[#16A34A]">{kycData.panCardFile}</span>}
+                    </div>
+                    {errors.panCardFile && <p className="text-sm text-red-300">{errors.panCardFile}</p>}
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-white/90">Upload Aadhaar</Label>
+                    <div className="flex items-center gap-3">
+                      <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-white/20 bg-white/10 py-3 px-4 text-sm font-medium text-white hover:bg-white/15">
+                        <Upload className="h-4 w-4" />
+                        Choose file
+                        <input
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          className="hidden"
+                          onChange={(e) => handleDocUpload(e, "aadhaarFile")}
+                        />
+                      </label>
+                      {kycData.aadhaarFile && <span className="text-sm text-[#16A34A]">{kycData.aadhaarFile}</span>}
+                    </div>
+                    {errors.aadhaarFile && <p className="text-sm text-red-300">{errors.aadhaarFile}</p>}
+                  </div>
+                </div>
+
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -884,6 +1016,24 @@ export default function InvestorKyc() {
                   <Label htmlFor="upiId" className="text-sm font-medium text-white">UPI ID <span className="font-normal text-white/50">(Optional)</span></Label>
                   <input id="upiId" type="text" placeholder="e.g. name@upi" value={kycData.upiId} onChange={(e) => setKycData((d) => ({ ...d, upiId: e.target.value }))} className={inputClass} />
                 </motion.div>
+
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-white">Bank Proof (Cancelled Cheque / Bank Passbook)</Label>
+                  <div className="flex items-center gap-3">
+                    <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-white/20 bg-white/10 py-3 px-4 text-sm font-medium text-white hover:bg-white/15">
+                      <Upload className="h-4 w-4" />
+                      Choose file
+                      <input
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        className="hidden"
+                        onChange={(e) => handleDocUpload(e, "bankProofFile")}
+                      />
+                    </label>
+                    {kycData.bankProofFile && <span className="text-sm text-[#16A34A]">{kycData.bankProofFile}</span>}
+                  </div>
+                  {errors.bankProofFile && <p className="text-sm text-red-300">{errors.bankProofFile}</p>}
+                </div>
 
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25, duration: 0.4 }} className="flex items-start gap-3 rounded-xl border border-white/20 bg-white/10 p-4 backdrop-blur-sm">
                   <Info className="h-5 w-5 shrink-0 mt-0.5 text-blue-300" aria-hidden />

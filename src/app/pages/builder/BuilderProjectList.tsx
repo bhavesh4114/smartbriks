@@ -1,67 +1,105 @@
+import { useEffect, useMemo, useState } from "react";
 import { BuilderLayout } from "../../components/layout/BuilderLayout";
 import StatusBadge from "../../components/dashboard/StatusBadge";
 import { Edit, Eye, TrendingUp } from "lucide-react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 
-const projects = [
-  {
-    id: 1,
-    name: "Sunrise Luxury Apartments",
-    location: "Mumbai",
-    totalCost: "₹5,00,00,000",
-    raised: "₹3,50,00,000",
-    investors: 142,
-    roi: "18%",
-    status: "active" as const,
-    progress: 70,
-  },
-  {
-    id: 2,
-    name: "Green Valley Villas",
-    location: "Bangalore",
-    totalCost: "₹8,00,00,000",
-    raised: "₹5,60,00,000",
-    investors: 98,
-    roi: "22%",
-    status: "active" as const,
-    progress: 70,
-  },
-  {
-    id: 3,
-    name: "Ocean View Towers",
-    location: "Goa",
-    totalCost: "₹6,50,00,000",
-    raised: "₹4,20,00,000",
-    investors: 76,
-    roi: "20%",
-    status: "active" as const,
-    progress: 65,
-  },
-  {
-    id: 4,
-    name: "Metro Plaza Complex",
-    location: "Delhi NCR",
-    totalCost: "₹10,00,00,000",
-    raised: "₹10,00,00,000",
-    investors: 215,
-    roi: "24%",
-    status: "completed" as const,
-    progress: 100,
-  },
-  {
-    id: 5,
-    name: "Riverside Residency",
-    location: "Hyderabad",
-    totalCost: "₹7,00,00,000",
-    raised: "₹1,20,00,000",
-    investors: 45,
-    roi: "19%",
-    status: "pending" as const,
-    progress: 17,
-  },
-];
+type BuilderProject = {
+  id: number;
+  title: string;
+  location: string;
+  totalValue: number | string | null;
+  expectedROI: number | string | null;
+  projectStatus: string;
+  totalInvested?: number | string | null;
+  investmentCount?: number | null;
+};
+
+type ProjectRow = {
+  id: number;
+  name: string;
+  location: string;
+  investors: number;
+  roi: number;
+  status: "active" | "completed" | "pending" | "approved" | "rejected" | "disabled";
+  progress: number;
+};
+
+const statusToBadge = (status: string): ProjectRow["status"] => {
+  switch (status) {
+    case "ACTIVE":
+    case "APPROVED":
+    case "FUNDED":
+      return "active";
+    case "COMPLETED":
+      return "completed";
+    case "PENDING_APPROVAL":
+      return "pending";
+    case "REJECTED":
+      return "rejected";
+    case "DRAFT":
+    default:
+      return "disabled";
+  }
+};
 
 export default function BuilderProjectList() {
+  const navigate = useNavigate();
+  const [projects, setProjects] = useState<BuilderProject[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if (!token) {
+      navigate("/builder/login", { replace: true });
+      return;
+    }
+
+    const fetchProjects = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const res = await fetch("/api/builders/projects", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.status === 401 || res.status === 403) {
+          navigate("/builder/login", { replace: true });
+          return;
+        }
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data?.success) {
+          setError(data?.message || "Failed to load projects.");
+          return;
+        }
+        setProjects(Array.isArray(data.data) ? data.data : []);
+      } catch {
+        setError("Network error while loading projects.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProjects();
+  }, [navigate]);
+
+  const rows = useMemo<ProjectRow[]>(() => {
+    return projects.map((project) => {
+      const totalValue = Number(project.totalValue ?? 0);
+      const totalInvested = Number(project.totalInvested ?? 0);
+      const progress = totalValue > 0 ? Math.min(100, (totalInvested / totalValue) * 100) : 0;
+      return {
+        id: project.id,
+        name: project.title,
+        location: project.location,
+        investors: Number(project.investmentCount ?? 0),
+        roi: Number(project.expectedROI ?? 0),
+        status: statusToBadge(project.projectStatus),
+        progress,
+      };
+    });
+  }, [projects]);
+
   return (
     <BuilderLayout>
       <div className="min-w-0 space-y-6 sm:space-y-8">
@@ -70,6 +108,7 @@ export default function BuilderProjectList() {
           <div className="min-w-0">
             <h1 className="break-words text-2xl font-semibold text-[#111827] sm:text-3xl">My Projects</h1>
             <p className="mt-1 text-[#6B7280]">Manage your real estate projects</p>
+            {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
           </div>
           <Link
             to="/builder/add-project"
@@ -109,7 +148,7 @@ export default function BuilderProjectList() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#E5E7EB]">
-                {projects.map((project) => (
+                {rows.map((project) => (
                   <tr
                     key={project.id}
                     className="hover:bg-slate-50 transition-colors"
@@ -123,7 +162,7 @@ export default function BuilderProjectList() {
                     <td className="px-6 py-4">
                       <div className="w-32">
                         <div className="flex justify-between text-xs mb-1">
-                          <span className="text-[#6B7280]">{project.progress}%</span>
+                          <span className="text-[#6B7280]">{project.progress.toFixed(0)}%</span>
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-2">
                           <div
@@ -139,7 +178,7 @@ export default function BuilderProjectList() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-1 text-[#16A34A] font-medium">
                         <TrendingUp size={16} />
-                        {project.roi}
+                        {project.roi}%
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -164,6 +203,17 @@ export default function BuilderProjectList() {
             </table>
           </div>
         </div>
+
+        {loading && (
+          <div className="rounded-2xl border border-[#E5E7EB] bg-white p-6 text-center text-[#6B7280]">
+            Loading projects...
+          </div>
+        )}
+        {!loading && rows.length === 0 && !error && (
+          <div className="rounded-2xl border border-[#E5E7EB] bg-white p-6 text-center text-[#6B7280]">
+            No projects found yet.
+          </div>
+        )}
       </div>
     </BuilderLayout>
   );
