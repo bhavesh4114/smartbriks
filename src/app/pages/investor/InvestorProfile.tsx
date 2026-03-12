@@ -31,6 +31,45 @@ type InvestorProfileData = {
     createdAt: string | Date;
     kycStatus: string;
     isActive: boolean;
+    address?: string;
+    city?: string;
+    state?: string;
+    zipCode?: string;
+    pincode?: string;
+    bankName?: string;
+    accountHolderName?: string;
+    accountNumber?: string;
+    routingNumber?: string;
+    ifscCode?: string;
+    swiftCode?: string;
+  };
+  profile?: {
+    address?: string;
+    city?: string;
+    state?: string;
+    zip?: string;
+    zipCode?: string;
+    pincode?: string;
+    bankName?: string;
+    accountHolder?: string;
+    accountHolderName?: string;
+    accountNumber?: string;
+    routing?: string;
+    routingNumber?: string;
+    ifscCode?: string;
+    swift?: string;
+    swiftCode?: string;
+  };
+  bankDetails?: {
+    bankName?: string;
+    accountHolder?: string;
+    accountHolderName?: string;
+    accountNumber?: string;
+    routing?: string;
+    routingNumber?: string;
+    ifscCode?: string;
+    swift?: string;
+    swiftCode?: string;
   };
   stats: {
     total_investments: number | string;
@@ -55,6 +94,12 @@ export default function InvestorProfile() {
   const [profile, setProfile] = useState<InvestorProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [personalFeedback, setPersonalFeedback] = useState("");
+  const [bankFeedback, setBankFeedback] = useState("");
+  const [securityFeedback, setSecurityFeedback] = useState("");
+  const [savingPersonal, setSavingPersonal] = useState(false);
+  const [savingBank, setSavingBank] = useState(false);
+  const [savingSecurity, setSavingSecurity] = useState(false);
 
   const [form, setForm] = useState({
     firstName: "",
@@ -71,53 +116,300 @@ export default function InvestorProfile() {
     routing: "",
     swift: "",
   });
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+
+  const pickFirst = (...values: Array<string | null | undefined>) =>
+    values.find((v) => typeof v === "string" && v.trim().length > 0)?.trim() ?? "";
+
+  const fillFormFromProfile = (nextProfile: InvestorProfileData) => {
+    const [firstName, ...rest] = (nextProfile.user.fullName || "").split(" ");
+    setForm({
+      firstName: firstName || "",
+      lastName: rest.join(" ") || "",
+      email: nextProfile.user.email || "",
+      phone: nextProfile.user.mobileNumber || "",
+      address: pickFirst(nextProfile.profile?.address, nextProfile.user.address),
+      city: pickFirst(nextProfile.profile?.city, nextProfile.user.city),
+      state: pickFirst(nextProfile.profile?.state, nextProfile.user.state),
+      zip: pickFirst(
+        nextProfile.profile?.zip,
+        nextProfile.profile?.zipCode,
+        nextProfile.profile?.pincode,
+        nextProfile.user.zipCode,
+        nextProfile.user.pincode
+      ),
+      bankName: pickFirst(nextProfile.bankDetails?.bankName, nextProfile.profile?.bankName, nextProfile.user.bankName),
+      accountHolder: pickFirst(
+        nextProfile.bankDetails?.accountHolder,
+        nextProfile.bankDetails?.accountHolderName,
+        nextProfile.profile?.accountHolder,
+        nextProfile.profile?.accountHolderName,
+        nextProfile.user.accountHolderName
+      ),
+      accountNumber: pickFirst(
+        nextProfile.bankDetails?.accountNumber,
+        nextProfile.profile?.accountNumber,
+        nextProfile.user.accountNumber
+      ),
+      routing: pickFirst(
+        nextProfile.bankDetails?.routing,
+        nextProfile.bankDetails?.routingNumber,
+        nextProfile.bankDetails?.ifscCode,
+        nextProfile.profile?.routing,
+        nextProfile.profile?.routingNumber,
+        nextProfile.profile?.ifscCode,
+        nextProfile.user.routingNumber,
+        nextProfile.user.ifscCode
+      ),
+      swift: pickFirst(
+        nextProfile.bankDetails?.swift,
+        nextProfile.bankDetails?.swiftCode,
+        nextProfile.profile?.swift,
+        nextProfile.profile?.swiftCode,
+        nextProfile.user.swiftCode
+      ),
+    });
+  };
+
+  const fetchProfile = async (showLoader = true) => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if (!token) {
+      navigate("/investor/login", { replace: true });
+      return null;
+    }
+    if (showLoader) setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/investor/profile", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.status === 401 || res.status === 403) {
+        navigate("/investor/login", { replace: true });
+        return null;
+      }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.success || !data?.data) {
+        setError(data?.message || "Failed to load profile.");
+        setProfile(null);
+        return null;
+      }
+      const nextProfile = data.data as InvestorProfileData;
+      setProfile(nextProfile);
+      fillFormFromProfile(nextProfile);
+      return nextProfile;
+    } catch {
+      setError("Network error while loading profile.");
+      setProfile(null);
+      return null;
+    } finally {
+      if (showLoader) setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchProfile = async () => {
-      const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
-      if (!token) {
-        navigate("/investor/login", { replace: true });
-        return;
-      }
-      setLoading(true);
-      setError("");
-      try {
-        const res = await fetch("/api/investor/profile", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.status === 401 || res.status === 403) {
-          navigate("/investor/login", { replace: true });
-          return;
-        }
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok || !data?.success) {
-          setError(data?.message || "Failed to load profile.");
-          setProfile(null);
-          return;
-        }
-        setProfile(data.data as InvestorProfileData);
-      } catch {
-        setError("Network error while loading profile.");
-        setProfile(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchProfile();
   }, [navigate]);
 
-  useEffect(() => {
-    if (!profile?.user) return;
-    const [firstName, ...rest] = (profile.user.fullName || "").split(" ");
-    setForm((f) => ({
-      ...f,
-      firstName: firstName || "",
-      lastName: rest.join(" ") || "",
-      email: profile.user.email || "",
-      phone: profile.user.mobileNumber || "",
-    }));
-  }, [profile?.user]);
+  const requestWithFallback = async (
+    candidates: Array<{ url: string; method: "PATCH" | "PUT" | "POST" }>,
+    payloads: Array<Record<string, unknown>>
+  ) => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if (!token) {
+      navigate("/investor/login", { replace: true });
+      return { ok: false, message: "Session expired. Please login again." };
+    }
+
+    let latestMessage = "Failed to save changes. Please check backend profile update API.";
+
+    for (const payload of payloads) {
+      for (const candidate of candidates) {
+        try {
+          const res = await fetch(candidate.url, {
+            method: candidate.method,
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(payload),
+          });
+          if (res.status === 401) {
+            navigate("/investor/login", { replace: true });
+            return { ok: false, message: "Session expired. Please login again." };
+          }
+
+          const raw = await res.text();
+          let data: any = {};
+          if (raw) {
+            try {
+              data = JSON.parse(raw);
+            } catch {
+              data = { message: raw };
+            }
+          }
+
+          if (res.ok && data?.success !== false) {
+            return { ok: true, message: data?.message || "Changes saved successfully." };
+          }
+          if (res.status !== 404 && res.status !== 405) {
+            latestMessage = data?.message || latestMessage;
+          }
+        } catch {
+          latestMessage = "Network error while saving changes.";
+        }
+      }
+    }
+
+    return { ok: false, message: latestMessage };
+  };
+
+  const handlePersonalSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPersonalFeedback("");
+
+    if (!form.firstName.trim() || !form.email.trim() || !form.phone.trim()) {
+      setPersonalFeedback("First name, email and phone are required.");
+      return;
+    }
+
+    setSavingPersonal(true);
+    const fullName = `${form.firstName.trim()} ${form.lastName.trim()}`.trim();
+    const payload = {
+      firstName: form.firstName.trim(),
+      lastName: form.lastName.trim(),
+      fullName,
+      email: form.email.trim(),
+      mobileNumber: form.phone.trim(),
+      phone: form.phone.trim(),
+      address: form.address.trim(),
+      city: form.city.trim(),
+      state: form.state.trim(),
+      zipCode: form.zip.trim(),
+      pincode: form.zip.trim(),
+    };
+
+    const result = await requestWithFallback(
+      [
+        { url: "/api/investor/profile", method: "PATCH" },
+        { url: "/api/investor/profile", method: "PUT" },
+        { url: "/api/investor/profile/personal", method: "PATCH" },
+        { url: "/api/investor/profile/personal", method: "PUT" },
+        { url: "/api/investor/profile/update", method: "POST" },
+      ],
+      [
+        payload,
+        {
+          fullName,
+          address: form.address.trim(),
+          city: form.city.trim(),
+          state: form.state.trim(),
+          zipCode: form.zip.trim(),
+        },
+        {
+          personalDetails: payload,
+        },
+      ]
+    );
+
+    setPersonalFeedback(result.message);
+    if (result.ok) await fetchProfile(false);
+    setSavingPersonal(false);
+  };
+
+  const handleBankSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBankFeedback("");
+
+    if (!form.bankName.trim() || !form.accountHolder.trim() || !form.accountNumber.trim()) {
+      setBankFeedback("Bank name, account holder and account number are required.");
+      return;
+    }
+
+    setSavingBank(true);
+    const payload = {
+      bankName: form.bankName.trim(),
+      accountHolder: form.accountHolder.trim(),
+      accountHolderName: form.accountHolder.trim(),
+      accountNumber: form.accountNumber.trim(),
+      routing: form.routing.trim(),
+      routingNumber: form.routing.trim(),
+      ifscCode: form.routing.trim(),
+      swift: form.swift.trim(),
+      swiftCode: form.swift.trim(),
+    };
+
+    const result = await requestWithFallback(
+      [
+        { url: "/api/investor/profile/bank", method: "PATCH" },
+        { url: "/api/investor/profile/bank", method: "PUT" },
+        { url: "/api/investor/profile", method: "PATCH" },
+        { url: "/api/investor/bank-details", method: "PATCH" },
+        { url: "/api/investor/bank-details", method: "PUT" },
+        { url: "/api/investor/profile/update-bank", method: "POST" },
+      ],
+      [
+        payload,
+        {
+          bankDetails: payload,
+        },
+      ]
+    );
+
+    setBankFeedback(result.message);
+    if (result.ok) await fetchProfile(false);
+    setSavingBank(false);
+  };
+
+  const handlePasswordSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSecurityFeedback("");
+
+    if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
+      setSecurityFeedback("All password fields are required.");
+      return;
+    }
+    if (passwordForm.newPassword.length < 8) {
+      setSecurityFeedback("New password must be at least 8 characters.");
+      return;
+    }
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setSecurityFeedback("New password and confirm password do not match.");
+      return;
+    }
+
+    setSavingSecurity(true);
+    const payload = {
+      currentPassword: passwordForm.currentPassword,
+      newPassword: passwordForm.newPassword,
+      confirmPassword: passwordForm.confirmPassword,
+    };
+
+    const result = await requestWithFallback(
+      [
+        { url: "/api/investor/change-password", method: "POST" },
+        { url: "/api/auth/change-password", method: "POST" },
+        { url: "/api/investor/profile/change-password", method: "POST" },
+      ],
+      [
+        payload,
+        {
+          oldPassword: passwordForm.currentPassword,
+          newPassword: passwordForm.newPassword,
+          confirmPassword: passwordForm.confirmPassword,
+        },
+      ]
+    );
+
+    setSecurityFeedback(result.message);
+    if (result.ok) {
+      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    }
+    setSavingSecurity(false);
+  };
 
   const memberSince = useMemo(() => {
     const d = new Date(profile?.user?.createdAt || "");
@@ -218,7 +510,7 @@ export default function InvestorProfile() {
                 <CardTitle className="text-gray-900">Personal Information</CardTitle>
               </CardHeader>
               <CardContent>
-                <form className="space-y-6">
+                <form className="space-y-6" onSubmit={handlePersonalSave}>
                   <div className="grid gap-6 md:grid-cols-2">
                     <div className="space-y-2">
                       <Label htmlFor="firstName">First Name</Label>
@@ -302,10 +594,27 @@ export default function InvestorProfile() {
                     </div>
                   </div>
 
+                  {personalFeedback && (
+                    <p className={`text-sm ${personalFeedback.includes("success") || personalFeedback.includes("saved") ? "text-emerald-600" : "text-red-600"}`}>
+                      {personalFeedback}
+                    </p>
+                  )}
+
                   <div className="flex flex-col-reverse justify-end gap-3 sm:flex-row">
-                    <Button variant="outline" className="w-full border-gray-200 text-gray-700 hover:bg-slate-50 sm:w-auto">Cancel</Button>
-                    <Button className="w-full rounded-xl bg-blue-600 text-white hover:bg-blue-700 sm:w-auto">
-                      Save Changes
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full border-gray-200 text-gray-700 hover:bg-slate-50 sm:w-auto"
+                      onClick={() => profile && fillFormFromProfile(profile)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={savingPersonal}
+                      className="w-full rounded-xl bg-blue-600 text-white hover:bg-blue-700 sm:w-auto"
+                    >
+                      {savingPersonal ? "Saving..." : "Save Changes"}
                     </Button>
                   </div>
                 </form>
@@ -320,7 +629,7 @@ export default function InvestorProfile() {
                 <CardTitle className="text-gray-900">Bank Account Details</CardTitle>
               </CardHeader>
               <CardContent>
-                <form className="space-y-6">
+                <form className="space-y-6" onSubmit={handleBankSave}>
                   <div className="grid gap-6 md:grid-cols-2">
                     <div className="space-y-2">
                       <Label htmlFor="bankName">Bank Name</Label>
@@ -364,10 +673,27 @@ export default function InvestorProfile() {
                     </p>
                   </div>
 
+                  {bankFeedback && (
+                    <p className={`text-sm ${bankFeedback.includes("success") || bankFeedback.includes("saved") ? "text-emerald-600" : "text-red-600"}`}>
+                      {bankFeedback}
+                    </p>
+                  )}
+
                   <div className="flex flex-col-reverse justify-end gap-3 sm:flex-row">
-                    <Button variant="outline" className="w-full border-gray-200 text-gray-700 hover:bg-slate-50 sm:w-auto">Cancel</Button>
-                    <Button className="w-full rounded-xl bg-blue-600 text-white hover:bg-blue-700 sm:w-auto">
-                      Update Bank Details
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full border-gray-200 text-gray-700 hover:bg-slate-50 sm:w-auto"
+                      onClick={() => profile && fillFormFromProfile(profile)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={savingBank}
+                      className="w-full rounded-xl bg-blue-600 text-white hover:bg-blue-700 sm:w-auto"
+                    >
+                      {savingBank ? "Saving..." : "Update Bank Details"}
                     </Button>
                   </div>
                 </form>
@@ -439,20 +765,35 @@ export default function InvestorProfile() {
                 <CardTitle className="text-gray-900">Security Settings</CardTitle>
               </CardHeader>
               <CardContent>
-                <form className="space-y-6">
+                <form className="space-y-6" onSubmit={handlePasswordSave}>
                   <div className="space-y-2">
                     <Label htmlFor="currentPassword">Current Password</Label>
-                    <Input id="currentPassword" type="password" />
+                    <Input
+                      id="currentPassword"
+                      type="password"
+                      value={passwordForm.currentPassword}
+                      onChange={(e) => setPasswordForm((f) => ({ ...f, currentPassword: e.target.value }))}
+                    />
                   </div>
 
                   <div className="grid gap-6 md:grid-cols-2">
                     <div className="space-y-2">
                       <Label htmlFor="newPassword">New Password</Label>
-                      <Input id="newPassword" type="password" />
+                      <Input
+                        id="newPassword"
+                        type="password"
+                        value={passwordForm.newPassword}
+                        onChange={(e) => setPasswordForm((f) => ({ ...f, newPassword: e.target.value }))}
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                      <Input id="confirmPassword" type="password" />
+                      <Input
+                        id="confirmPassword"
+                        type="password"
+                        value={passwordForm.confirmPassword}
+                        onChange={(e) => setPasswordForm((f) => ({ ...f, confirmPassword: e.target.value }))}
+                      />
                     </div>
                   </div>
 
@@ -464,14 +805,31 @@ export default function InvestorProfile() {
                           Add an extra layer of security to your account
                         </p>
                       </div>
-                      <Button variant="outline" className="w-full sm:w-auto">Enable 2FA</Button>
+                      <Button type="button" variant="outline" className="w-full sm:w-auto">Enable 2FA</Button>
                     </div>
                   </div>
 
+                  {securityFeedback && (
+                    <p className={`text-sm ${securityFeedback.includes("success") || securityFeedback.includes("saved") ? "text-emerald-600" : "text-red-600"}`}>
+                      {securityFeedback}
+                    </p>
+                  )}
+
                   <div className="flex flex-col-reverse justify-end gap-3 sm:flex-row">
-                    <Button variant="outline" className="w-full border-gray-200 text-gray-700 hover:bg-slate-50 sm:w-auto">Cancel</Button>
-                    <Button className="w-full rounded-xl bg-blue-600 text-white hover:bg-blue-700 sm:w-auto">
-                      Update Password
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full border-gray-200 text-gray-700 hover:bg-slate-50 sm:w-auto"
+                      onClick={() => setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" })}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={savingSecurity}
+                      className="w-full rounded-xl bg-blue-600 text-white hover:bg-blue-700 sm:w-auto"
+                    >
+                      {savingSecurity ? "Updating..." : "Update Password"}
                     </Button>
                   </div>
                 </form>

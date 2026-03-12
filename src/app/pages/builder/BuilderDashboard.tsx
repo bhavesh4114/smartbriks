@@ -228,16 +228,11 @@ export default function BuilderDashboard() {
                 </p>
                 <Button
                   type="button"
-                  onClick={() => {
-                    if (kycStatus !== "pending") {
-                      navigate("/builder/kyc");
-                    }
-                  }}
-                  disabled={kycStatus === "pending"}
+                  onClick={() => navigate("/builder/kyc")}
                   className="rounded-lg bg-amber-600 text-white hover:bg-amber-700"
                 >
                   {kycStatus === "pending"
-                    ? "Awaiting Admin Approval"
+                    ? "Complete KYC"
                     : kycStatus === "rejected"
                     ? "Re-submit KYC"
                     : "Complete KYC"}

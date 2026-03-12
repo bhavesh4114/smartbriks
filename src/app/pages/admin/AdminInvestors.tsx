@@ -27,6 +27,73 @@ type InvestorStats = {
   blocked_investors: number;
 };
 
+type InvestorDetails = {
+  id: number;
+  fullName: string;
+  email: string;
+  mobileNumber: string;
+  role: string;
+  kycStatus: "PENDING" | "VERIFIED" | "REJECTED";
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  summary?: {
+    totalInvested: number;
+    totalProjects: number;
+  };
+  profile?: {
+    dateOfBirth?: string | null;
+    gender?: string | null;
+    panNumber?: string | null;
+    aadhaarNumber?: string | null;
+    resAddressLine1?: string | null;
+    resAddressLine2?: string | null;
+    city?: string | null;
+    state?: string | null;
+    zipCode?: string | null;
+    permAddressLine1?: string | null;
+    permAddressLine2?: string | null;
+    permCity?: string | null;
+    permState?: string | null;
+    permPincode?: string | null;
+    bankName?: string | null;
+    accountHolderName?: string | null;
+    accountNumber?: string | null;
+    routingNumber?: string | null;
+    swiftCode?: string | null;
+    accountType?: string | null;
+    upiId?: string | null;
+    annualIncome?: string | null;
+    occupation?: string | null;
+    sourceOfFunds?: string | null;
+    riskAppetite?: string | null;
+    panCardImage?: string | null;
+    aadhaarImage?: string | null;
+    bankProofImage?: string | null;
+    selfieImage?: string | null;
+  } | null;
+  kyc?: Array<{
+    id: number;
+    documentType: string;
+    documentNumber: string;
+    documentImage: string | null;
+    status: string;
+    rejectionReason: string | null;
+    createdAt: string;
+  }>;
+  investments?: Array<{
+    id: number;
+    investedAmount: number | string;
+    sharesPurchased: number;
+    investmentStatus: string;
+    createdAt: string;
+    project?: {
+      title?: string;
+      location?: string;
+    };
+  }>;
+};
+
 export default function AdminInvestors() {
   const navigate = useNavigate();
   const [investors, setInvestors] = useState<InvestorRow[]>([]);
@@ -40,6 +107,9 @@ export default function AdminInvestors() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerLoading, setViewerLoading] = useState(false);
+  const [viewerData, setViewerData] = useState<InvestorDetails | null>(null);
 
   const getToken = () => (typeof window !== "undefined" ? localStorage.getItem("token") : null);
 
@@ -152,6 +222,47 @@ export default function AdminInvestors() {
     await runAction(id, "reject", reason?.trim() ? { reason: reason.trim() } : {});
   };
 
+  const handleViewInvestor = async (id: number) => {
+    const token = getToken();
+    if (!token) {
+      navigate("/login", { replace: true });
+      return;
+    }
+    setViewerOpen(true);
+    setViewerLoading(true);
+    setViewerData(null);
+    try {
+      const authHeaders = { Authorization: `Bearer ${token}` };
+      const fetchFirstOk = async (urls: string[]) => {
+        let lastResponse: Response | null = null;
+        for (const url of urls) {
+          const res = await fetch(url, { headers: authHeaders });
+          if (res.status !== 404) return res;
+          lastResponse = res;
+        }
+        return lastResponse as Response;
+      };
+      const res = await fetchFirstOk([`/api/admin/investors/${id}`, `/api/admin/investor/${id}`]);
+      if (res.status === 401 || res.status === 403) {
+        navigate("/login", { replace: true });
+        return;
+      }
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json?.success) {
+        setError(json?.message || "Failed to load investor details.");
+        return;
+      }
+      setViewerData(json.data ?? null);
+    } catch {
+      setError("Network error while loading investor details.");
+    } finally {
+      setViewerLoading(false);
+    }
+  };
+
+  const fileUrl = (img: string | null | undefined) =>
+    img ? `/api/uploads/${img.replace(/^\/+/, "")}` : null;
+
   const kycClass = (status: InvestorRow["kyc_status"]) =>
     status === "VERIFIED" ? "bg-green-500" : status === "PENDING" ? "bg-amber-500" : "bg-red-500";
   const accountClass = (status: InvestorRow["account_status"]) =>
@@ -236,7 +347,7 @@ export default function AdminInvestors() {
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-2">
-                          <Button variant="ghost" size="sm">
+                          <Button variant="ghost" size="sm" onClick={() => handleViewInvestor(investor.id)}>
                             <Eye className="h-4 w-4" />
                           </Button>
                           {investor.kyc_status === "PENDING" && (
@@ -302,6 +413,111 @@ export default function AdminInvestors() {
           </CardContent>
         </Card>
       </div>
+      {viewerOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-2xl bg-white p-5">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-[#111827]">Investor Details</h2>
+              <Button variant="outline" size="sm" onClick={() => setViewerOpen(false)}>
+                Close
+              </Button>
+            </div>
+            {viewerLoading && <p className="text-sm text-gray-600">Loading...</p>}
+            {!viewerLoading && !viewerData && <p className="text-sm text-gray-600">No details found.</p>}
+            {!viewerLoading && viewerData && (
+              <div className="space-y-5">
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="rounded-lg border p-3">
+                    <p className="text-xs text-gray-500">Name</p>
+                    <p className="font-medium">{viewerData.fullName}</p>
+                    <p className="mt-2 text-xs text-gray-500">Email</p>
+                    <p className="font-medium">{viewerData.email}</p>
+                    <p className="mt-2 text-xs text-gray-500">Mobile</p>
+                    <p className="font-medium">{viewerData.mobileNumber}</p>
+                  </div>
+                  <div className="rounded-lg border p-3">
+                    <p className="text-xs text-gray-500">KYC Status</p>
+                    <p className="font-medium">{viewerData.kycStatus}</p>
+                    <p className="mt-2 text-xs text-gray-500">Account</p>
+                    <p className="font-medium">{viewerData.isActive ? "ACTIVE" : "BLOCKED"}</p>
+                    <p className="mt-2 text-xs text-gray-500">Total Invested</p>
+                    <p className="font-medium">{formatINR(viewerData.summary?.totalInvested ?? 0)}</p>
+                  </div>
+                </div>
+
+                <div className="rounded-lg border p-3">
+                  <p className="mb-2 text-sm font-semibold">Profile & Bank</p>
+                  <div className="grid gap-2 text-sm md:grid-cols-2">
+                    <p>DOB: {viewerData.profile?.dateOfBirth || "-"}</p>
+                    <p>Gender: {viewerData.profile?.gender || "-"}</p>
+                    <p>PAN: {viewerData.profile?.panNumber || "-"}</p>
+                    <p>Aadhaar: {viewerData.profile?.aadhaarNumber || "-"}</p>
+                    <p>Residential: {[viewerData.profile?.resAddressLine1, viewerData.profile?.resAddressLine2, viewerData.profile?.city, viewerData.profile?.state, viewerData.profile?.zipCode].filter(Boolean).join(", ") || "-"}</p>
+                    <p>Permanent: {[viewerData.profile?.permAddressLine1, viewerData.profile?.permAddressLine2, viewerData.profile?.permCity, viewerData.profile?.permState, viewerData.profile?.permPincode].filter(Boolean).join(", ") || "-"}</p>
+                    <p>Bank: {viewerData.profile?.bankName || "-"}</p>
+                    <p>Holder: {viewerData.profile?.accountHolderName || "-"}</p>
+                    <p>Account No: {viewerData.profile?.accountNumber || "-"}</p>
+                    <p>IFSC/Routing: {viewerData.profile?.routingNumber || "-"}</p>
+                    <p>SWIFT: {viewerData.profile?.swiftCode || "-"}</p>
+                    <p>UPI: {viewerData.profile?.upiId || "-"}</p>
+                    <p>Income: {viewerData.profile?.annualIncome || "-"}</p>
+                    <p>Occupation: {viewerData.profile?.occupation || "-"}</p>
+                    <p>Risk: {viewerData.profile?.riskAppetite || "-"}</p>
+                    <p>Source: {viewerData.profile?.sourceOfFunds || "-"}</p>
+                  </div>
+                </div>
+
+                <div className="rounded-lg border p-3">
+                  <p className="mb-2 text-sm font-semibold">Uploaded Images</p>
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    {[
+                      { label: "PAN Card", src: fileUrl(viewerData.profile?.panCardImage || null) },
+                      { label: "Aadhaar", src: fileUrl(viewerData.profile?.aadhaarImage || null) },
+                      { label: "Bank Proof", src: fileUrl(viewerData.profile?.bankProofImage || null) },
+                      { label: "Selfie", src: fileUrl(viewerData.profile?.selfieImage || null) },
+                    ].map((img) => (
+                      <div key={img.label} className="rounded-lg border p-2">
+                        <p className="text-xs text-gray-600">{img.label}</p>
+                        {img.src ? (
+                          <a href={img.src} target="_blank" rel="noreferrer">
+                            <img src={img.src} alt={img.label} className="mt-2 h-28 w-full rounded object-cover" />
+                          </a>
+                        ) : (
+                          <div className="mt-2 flex h-28 items-center justify-center rounded border border-dashed text-xs text-gray-500">
+                            Not available
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-lg border p-3">
+                  <p className="mb-2 text-sm font-semibold">KYC Documents</p>
+                  <div className="space-y-2">
+                    {(viewerData.kyc || []).map((doc) => (
+                      <div key={doc.id} className="rounded border p-2 text-sm">
+                        <p>{doc.documentType} • {doc.documentNumber} • {doc.status}</p>
+                        {doc.documentImage && (
+                          <a
+                            href={fileUrl(doc.documentImage) || "#"}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-blue-600 hover:underline"
+                          >
+                            View document
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                    {(viewerData.kyc || []).length === 0 && <p className="text-sm text-gray-500">No KYC docs.</p>}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }

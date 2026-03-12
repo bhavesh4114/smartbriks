@@ -58,6 +58,40 @@ type ProjectDetailsData = {
   }[];
 };
 
+function hasValue(value: unknown): boolean {
+  return typeof value === "string" ? value.trim().length > 0 : value !== null && value !== undefined;
+}
+
+function pickFirstNonEmpty(values: unknown[]): string {
+  const found = values.find((value) => hasValue(value));
+  return typeof found === "string" ? found.trim() : "";
+}
+
+function isProfileCompleteForInvestment(payload: any): boolean {
+  const data = payload?.data ?? payload ?? {};
+  const user = data?.user ?? {};
+  const profile = data?.profile ?? {};
+  const bank = data?.bank ?? {};
+
+  const fullName = pickFirstNonEmpty([profile.fullName, user.fullName, profile.name, user.name]);
+  const email = pickFirstNonEmpty([profile.email, user.email]);
+  const mobile = pickFirstNonEmpty([profile.mobileNumber, user.mobileNumber, profile.phone, user.phone]);
+  const address = pickFirstNonEmpty([profile.address, profile.resAddressLine1, user.address]);
+  const city = pickFirstNonEmpty([profile.city, profile.resCity, user.city]);
+  const state = pickFirstNonEmpty([profile.state, profile.resState, user.state]);
+  const zipCode = pickFirstNonEmpty([profile.zip, profile.zipCode, profile.pincode, profile.resPincode, user.zipCode]);
+
+  const bankName = pickFirstNonEmpty([bank.bankName, profile.bankName, user.bankName]);
+  const accountHolder = pickFirstNonEmpty([bank.accountHolderName, profile.accountHolder, profile.accountHolderName, user.accountHolderName]);
+  const accountNumber = pickFirstNonEmpty([bank.accountNumber, profile.accountNumber, user.accountNumber]);
+  const ifscOrRouting = pickFirstNonEmpty([bank.ifscCode, profile.ifscCode, bank.routing, profile.routing, profile.swift]);
+
+  const hasPersonalDetails = [fullName, email, mobile, address, city, state, zipCode].every(hasValue);
+  const hasBankDetails = [bankName, accountHolder, accountNumber, ifscOrRouting].every(hasValue);
+
+  return hasPersonalDetails && hasBankDetails;
+}
+
 export default function ProjectDetails() {
   const navigate = useNavigate();
   const params = useParams();
@@ -70,6 +104,10 @@ export default function ProjectDetails() {
   const [error, setError] = useState("");
   const [paymentMessage, setPaymentMessage] = useState("");
   const [isPaying, setIsPaying] = useState(false);
+  const [isProfileComplete, setIsProfileComplete] = useState(false);
+  const [profileCheckMessage, setProfileCheckMessage] = useState(
+    "Complete personal and bank details in Profile before investing."
+  );
   const razorpayKeyFromEnv = import.meta.env.VITE_RAZORPAY_KEY_ID;
 
   useEffect(() => {
@@ -128,13 +166,45 @@ export default function ProjectDetails() {
       }
     };
 
+    const fetchProfileCompletion = async () => {
+      try {
+        const res = await fetch("/api/investor/profile", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.status === 401) {
+          navigate("/investor/login", { replace: true });
+          return;
+        }
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || json?.success === false) {
+          setIsProfileComplete(false);
+          setProfileCheckMessage("Complete personal and bank details in Profile before investing.");
+          return;
+        }
+        setIsProfileComplete(isProfileCompleteForInvestment(json));
+      } catch {
+        setIsProfileComplete(false);
+        setProfileCheckMessage("Unable to verify profile details. Please update Profile and try again.");
+      }
+    };
+
     fetchProjectDetails();
+    fetchProfileCompletion();
   }, [navigate, routeProjectId]);
 
   const handleInvest = () => {
     const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
     if (!token || !projectDetails) {
       navigate("/investor/login", { replace: true });
+      return;
+    }
+    if (!isKycApproved()) {
+      navigate("/investor/kyc/status", { replace: true });
+      return;
+    }
+    if (!isProfileComplete) {
+      setPaymentMessage(profileCheckMessage);
+      navigate("/investor/profile", { replace: true });
       return;
     }
 
@@ -493,12 +563,23 @@ export default function ProjectDetails() {
                           navigate("/investor/kyc/status", { replace: true });
                           return;
                         }
+                        if (!isProfileComplete) {
+                          e.preventDefault();
+                          setPaymentMessage(profileCheckMessage);
+                          navigate("/investor/profile", { replace: true });
+                          return;
+                        }
                         setPaymentMessage("");
                       }}
                     >
-                      Invest Now
+                      {isProfileComplete ? "Invest Now" : "Complete Profile to Invest"}
                     </Button>
                   </DialogTrigger>
+                  {!isProfileComplete && (
+                    <p className="text-xs text-amber-700">
+                      {profileCheckMessage}
+                    </p>
+                  )}
                   <DialogContent className="max-h-[90vh] w-[calc(100vw-1rem)] overflow-y-auto bg-white border-gray-200 rounded-2xl sm:max-h-[85vh] sm:w-full sm:max-w-lg">
                     <DialogHeader>
                       <DialogTitle className="text-gray-900">Invest in {projectDetails.project_name}</DialogTitle>

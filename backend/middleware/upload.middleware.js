@@ -36,6 +36,7 @@ export const uploadKycDocuments = multer({
 }).fields([
   { name: 'companyPanFile', maxCount: 1 },
   { name: 'gstCertificateFile', maxCount: 1 },
+  { name: 'cinLlpinFile', maxCount: 1 },
   { name: 'reraCertificateFile', maxCount: 1 },
   { name: 'cancelledChequeFile', maxCount: 1 },
   { name: 'idProofFile', maxCount: 1 },

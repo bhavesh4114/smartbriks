@@ -13,6 +13,7 @@ import {
 } from '../controllers/adminProject.controller.js';
 import {
   listInvestors,
+  getInvestorDetails,
   getInvestorStats,
   verifyInvestor,
   rejectInvestor,
@@ -51,8 +52,10 @@ router.post('/projects/:id/reject', rejectProject);
 // Investor management workflow
 router.get('/investors', listInvestors);
 router.get('/investors/stats', getInvestorStats);
+router.get('/investors/:id', getInvestorDetails);
 router.get('/investor', listInvestors);
 router.get('/investor/stats', getInvestorStats);
+router.get('/investor/:id', getInvestorDetails);
 router.post('/investors/:id/verify', verifyInvestor);
 router.post('/investors/:id/reject', rejectInvestor);
 router.post('/investors/:id/block', blockInvestor);

@@ -99,6 +99,7 @@ export default function BuilderKyc() {
   const [documentFiles, setDocumentFiles] = useState<{
     companyPanFile: File | null;
     gstCertificateFile: File | null;
+    cinLlpinFile: File | null;
     reraCertificateFile: File | null;
     cancelledChequeFile: File | null;
     idProofFile: File | null;
@@ -106,6 +107,7 @@ export default function BuilderKyc() {
   }>({
     companyPanFile: null,
     gstCertificateFile: null,
+    cinLlpinFile: null,
     reraCertificateFile: null,
     cancelledChequeFile: null,
     idProofFile: null,
@@ -192,14 +194,38 @@ export default function BuilderKyc() {
       }
       try {
         const formData = new FormData();
+        const appendIf = (key: string, value: unknown) => {
+          if (value === null || value === undefined) return;
+          const s = String(value).trim();
+          if (!s) return;
+          formData.append(key, s);
+        };
         formData.append("documentType", "BUILDER_KYC_SUBMISSION");
         formData.append("documentNumber", sensitiveValues.companyPan?.trim()?.toUpperCase() || "PENDING");
         formData.append("companyPan", sensitiveValues.companyPan?.trim()?.toUpperCase() || "");
-        formData.append("gstNumber", kycData.gstNumber?.trim() || "");
-        formData.append("reraNumber", kycData.reraNumber?.trim() || "");
-        formData.append("accountNumber", sensitiveValues.accountNumber?.trim() || "");
-        formData.append("ifscCode", sensitiveValues.ifscCode?.trim()?.toUpperCase() || "");
-        formData.append("authPersonPan", sensitiveValues.authPersonPan?.trim()?.toUpperCase() || "");
+        appendIf("companyName", kycData.companyName);
+        appendIf("businessType", kycData.businessType);
+        appendIf("yearOfEstablishment", kycData.yearOfEstablishment);
+        appendIf("gstNumber", kycData.gstNumber);
+        appendIf("officialEmail", kycData.officialEmail);
+        appendIf("officialMobile", kycData.officialMobile);
+        appendIf("addressLine1", kycData.addressLine1);
+        appendIf("addressLine2", kycData.addressLine2);
+        appendIf("city", kycData.city);
+        appendIf("state", kycData.state);
+        appendIf("pincode", kycData.pincode);
+        appendIf("country", kycData.country);
+        appendIf("sameAsSiteOffice", String(kycData.sameAsSiteOffice));
+        appendIf("reraNumber", kycData.reraNumber);
+        appendIf("accountHolderName", kycData.accountHolderName);
+        appendIf("bankName", kycData.bankName);
+        appendIf("accountNumber", sensitiveValues.accountNumber);
+        appendIf("ifscCode", sensitiveValues.ifscCode?.trim()?.toUpperCase());
+        appendIf("authPersonName", kycData.authPersonName);
+        appendIf("designation", kycData.designation);
+        appendIf("authPersonMobile", kycData.authPersonMobile);
+        appendIf("authPersonEmail", kycData.authPersonEmail);
+        appendIf("authPersonPan", sensitiveValues.authPersonPan?.trim()?.toUpperCase());
         Object.entries(documentFiles).forEach(([key, file]) => {
           if (file) formData.append(key, file);
         });
@@ -274,6 +300,7 @@ export default function BuilderKyc() {
       if (
         field === "companyPanFile" ||
         field === "gstCertificateFile" ||
+        field === "cinLlpinFile" ||
         field === "reraCertificateFile" ||
         field === "cancelledChequeFile" ||
         field === "idProofFile" ||

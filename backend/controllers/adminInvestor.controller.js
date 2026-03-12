@@ -65,6 +65,121 @@ export async function listInvestors(req, res) {
 }
 
 /**
+ * GET /api/admin/investors/:id
+ */
+export async function getInvestorDetails(req, res) {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid investor id.' });
+    }
+
+    const investor = await prisma.user.findFirst({
+      where: { id, role: 'INVESTOR' },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        mobileNumber: true,
+        role: true,
+        kycStatus: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+        profile: {
+          select: {
+            dateOfBirth: true,
+            gender: true,
+            panNumber: true,
+            aadhaarNumber: true,
+            resAddressLine1: true,
+            resAddressLine2: true,
+            city: true,
+            state: true,
+            zipCode: true,
+            permAddressLine1: true,
+            permAddressLine2: true,
+            permCity: true,
+            permState: true,
+            permPincode: true,
+            bankName: true,
+            accountHolderName: true,
+            accountNumber: true,
+            routingNumber: true,
+            swiftCode: true,
+            accountType: true,
+            upiId: true,
+            annualIncome: true,
+            occupation: true,
+            sourceOfFunds: true,
+            riskAppetite: true,
+            panCardImage: true,
+            aadhaarImage: true,
+            bankProofImage: true,
+            selfieImage: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
+        kyc: {
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            documentType: true,
+            documentNumber: true,
+            documentImage: true,
+            status: true,
+            rejectionReason: true,
+            verifiedAt: true,
+            createdAt: true,
+          },
+        },
+        investments: {
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            projectId: true,
+            investedAmount: true,
+            sharesPurchased: true,
+            investmentStatus: true,
+            createdAt: true,
+            project: {
+              select: {
+                title: true,
+                location: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!investor) {
+      return res.status(404).json({ success: false, message: 'Investor not found.' });
+    }
+
+    const totalInvested = investor.investments.reduce((sum, inv) => {
+      const amt = Number(inv.investedAmount?.toString?.() ?? inv.investedAmount ?? 0);
+      return sum + (Number.isFinite(amt) ? amt : 0);
+    }, 0);
+
+    return res.json({
+      success: true,
+      data: {
+        ...investor,
+        summary: {
+          totalInvested,
+          totalProjects: investor.investments.length,
+        },
+      },
+    });
+  } catch (err) {
+    console.error('getInvestorDetails:', err);
+    return res.status(500).json({ success: false, message: 'Failed to fetch investor details.' });
+  }
+}
+
+/**
  * GET /api/admin/investors/stats
  */
 export async function getInvestorStats(req, res) {

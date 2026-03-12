@@ -37,6 +37,10 @@ export default function InvestorKycStatus() {
   }, []);
 
   useEffect(() => {
+    fetchAndSyncStatus();
+  }, []);
+
+  useEffect(() => {
     if (user?.role !== "investor") return;
     if (user?.kycStatus === "not_started" || user?.kycStatus === "in_progress") {
       navigate("/investor/kyc", { replace: true });
@@ -61,6 +65,11 @@ export default function InvestorKycStatus() {
           const mapped =
             raw === "VERIFIED" ? "approved" : raw === "REJECTED" ? "rejected" : raw === "PENDING" ? "pending" : user?.kycStatus ?? "pending";
           syncInvestorUserKycStatus(mapped);
+          if (mapped === "rejected") {
+            setKycRejectionReason((data?.rejectionReason || "").trim());
+          } else {
+            setKycRejectionReason("");
+          }
           setUser(getEffectiveInvestorUser());
         }
       })

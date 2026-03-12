@@ -120,6 +120,17 @@ export default function InvestorKyc() {
     bankProofFile: null,
     selfieFile: null,
   });
+  const [documentPreviewUrls, setDocumentPreviewUrls] = useState<{
+    panCardFile: string;
+    aadhaarFile: string;
+    bankProofFile: string;
+    selfieFile: string;
+  }>({
+    panCardFile: "",
+    aadhaarFile: "",
+    bankProofFile: "",
+    selfieFile: "",
+  });
   const [sameAsPermanent, setSameAsPermanent] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -140,11 +151,11 @@ export default function InvestorKyc() {
     if (!kycData.gender) nextErrors.gender = "Please select gender";
     if (!kycData.pan.trim()) nextErrors.pan = "PAN is required";
     else if (!PAN_REGEX.test(kycData.pan.replace(/\s/g, ""))) nextErrors.pan = "Invalid PAN format (e.g. ABCDE1234F)";
-    if (!kycData.panCardFile) nextErrors.panCardFile = "PAN card upload is required";
+    if (!documentFiles.panCardFile) nextErrors.panCardFile = "PAN card upload is required";
     const aadhaarDigits = kycData.aadhaar.replace(/\s/g, "");
     if (!aadhaarDigits) nextErrors.aadhaar = "Aadhaar number is required";
     else if (!AADHAAR_REGEX.test(aadhaarDigits)) nextErrors.aadhaar = "Aadhaar must be 12 digits";
-    if (!kycData.aadhaarFile) nextErrors.aadhaarFile = "Aadhaar upload is required";
+    if (!documentFiles.aadhaarFile) nextErrors.aadhaarFile = "Aadhaar upload is required";
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   };
@@ -172,7 +183,7 @@ export default function InvestorKyc() {
     if (!kycData.ifscCode.trim()) nextErrors.ifscCode = "IFSC code is required";
     else if (!IFSC_REGEX.test(kycData.ifscCode.replace(/\s/g, ""))) nextErrors.ifscCode = "Invalid IFSC (e.g. SBIN0001234)";
     if (!kycData.accountType) nextErrors.accountType = "Please select account type";
-    if (!kycData.bankProofFile) nextErrors.bankProofFile = "Bank proof upload is required";
+    if (!documentFiles.bankProofFile) nextErrors.bankProofFile = "Bank proof upload is required";
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   };
@@ -214,11 +225,44 @@ export default function InvestorKyc() {
       }
       try {
         const formData = new FormData();
+        const appendIf = (key: string, value: unknown) => {
+          if (value === null || value === undefined) return;
+          const s = String(value).trim();
+          if (!s) return;
+          formData.append(key, s);
+        };
+
         formData.append("documentType", "KYC_SUBMISSION");
         formData.append("documentNumber", kycData.pan?.trim()?.toUpperCase() || "PENDING");
         formData.append("pan", kycData.pan?.trim()?.toUpperCase() || "");
         formData.append("aadhaar", kycData.aadhaar?.replace(/\s/g, "") || "");
         formData.append("accountNumber", kycData.accountNumber?.trim() || "");
+        appendIf("fullName", kycData.fullName);
+        appendIf("email", kycData.email);
+        appendIf("mobile", kycData.mobile);
+        appendIf("dateOfBirth", kycData.dateOfBirth);
+        appendIf("gender", kycData.gender);
+        appendIf("resAddressLine1", kycData.resAddressLine1);
+        appendIf("resAddressLine2", kycData.resAddressLine2);
+        appendIf("resCity", kycData.resCity);
+        appendIf("resState", kycData.resState);
+        appendIf("resPincode", kycData.resPincode);
+        appendIf("permAddressLine1", kycData.permAddressLine1);
+        appendIf("permAddressLine2", kycData.permAddressLine2);
+        appendIf("permCity", kycData.permCity);
+        appendIf("permState", kycData.permState);
+        appendIf("permPincode", kycData.permPincode);
+        appendIf("accountHolderName", kycData.accountHolderName);
+        appendIf("bankName", kycData.bankName);
+        appendIf("ifscCode", kycData.ifscCode);
+        appendIf("accountType", kycData.accountType);
+        appendIf("upiId", kycData.upiId);
+        appendIf("annualIncome", kycData.annualIncome);
+        appendIf("occupation", kycData.occupation);
+        appendIf("riskAppetite", kycData.riskAppetite);
+        if (kycData.sourceOfFunds?.length) {
+          formData.append("sourceOfFunds", JSON.stringify(kycData.sourceOfFunds));
+        }
         Object.entries(documentFiles).forEach(([key, file]) => {
           if (file) formData.append(key, file);
         });
@@ -311,7 +355,16 @@ export default function InvestorKyc() {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return;
       const parsed = JSON.parse(raw);
-      if (parsed?.kycData) setKycData((d) => ({ ...d, ...parsed.kycData }));
+      if (parsed?.kycData) {
+        setKycData((d) => ({
+          ...d,
+          ...parsed.kycData,
+          // File objects cannot be restored from localStorage, so force re-upload.
+          panCardFile: "",
+          aadhaarFile: "",
+          bankProofFile: "",
+        }));
+      }
       if (typeof parsed?.currentStep === "number") setCurrentStep(parsed.currentStep);
       if (typeof parsed?.sameAsPermanent === "boolean") setSameAsPermanent(parsed.sameAsPermanent);
       if (typeof parsed?.declarationAccepted === "boolean") setDeclarationAccepted(parsed.declarationAccepted);
@@ -339,6 +392,25 @@ export default function InvestorKyc() {
     if (currentStep === 5 && !kycData.selfieImage) startCamera();
     return () => { stopCamera(); };
   }, [currentStep, kycData.selfieImage]);
+
+  useEffect(() => {
+    const createdUrls: string[] = [];
+    const toPreview = (file: File | null) => {
+      if (!file || !file.type.startsWith("image/")) return "";
+      const url = URL.createObjectURL(file);
+      createdUrls.push(url);
+      return url;
+    };
+    setDocumentPreviewUrls({
+      panCardFile: toPreview(documentFiles.panCardFile),
+      aadhaarFile: toPreview(documentFiles.aadhaarFile),
+      bankProofFile: toPreview(documentFiles.bankProofFile),
+      selfieFile: toPreview(documentFiles.selfieFile),
+    });
+    return () => {
+      createdUrls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [documentFiles]);
 
   const captureSelfie = () => {
     const video = videoRef.current;
@@ -1311,6 +1383,33 @@ export default function InvestorKyc() {
 
                 <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25, duration: 0.3 }} className="rounded-xl border border-white/20 bg-white/10 p-5">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <h3 className="text-base font-semibold text-white">Uploaded Documents</h3>
+                    <button type="button" onClick={() => setCurrentStep(1)} className="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-300 transition-colors hover:opacity-90">Edit <ChevronRight className="h-4 w-4" /></button>
+                  </div>
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    {[
+                      { label: "PAN Card", src: documentPreviewUrls.panCardFile, name: kycData.panCardFile },
+                      { label: "Aadhaar", src: documentPreviewUrls.aadhaarFile, name: kycData.aadhaarFile },
+                      { label: "Bank Proof", src: documentPreviewUrls.bankProofFile, name: kycData.bankProofFile },
+                      { label: "Selfie", src: documentPreviewUrls.selfieFile || kycData.selfieImage, name: "Captured" },
+                    ].map((doc) => (
+                      <div key={doc.label} className="rounded-xl border border-white/20 bg-white/5 p-3">
+                        <p className="text-sm font-medium text-white">{doc.label}</p>
+                        {doc.src ? (
+                          <img src={doc.src} alt={doc.label} className="mt-2 h-24 w-full rounded-lg object-cover" />
+                        ) : (
+                          <div className="mt-2 flex h-24 items-center justify-center rounded-lg border border-dashed border-white/20 text-xs text-white/60">
+                            No preview
+                          </div>
+                        )}
+                        <p className="mt-2 truncate text-xs text-white/70">{doc.name || "Not uploaded"}</p>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+
+                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.3 }} className="rounded-xl border border-white/20 bg-white/10 p-5">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <h3 className="text-base font-semibold text-white">Selfie Verification</h3>
                     <button type="button" onClick={() => setCurrentStep(5)} className="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-300 transition-colors hover:opacity-90">Retake <ChevronRight className="h-4 w-4" /></button>
                   </div>
@@ -1322,7 +1421,7 @@ export default function InvestorKyc() {
                   </div>
                 </motion.div>
 
-                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.3 }} className="rounded-xl border border-white/20 p-5">
+                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35, duration: 0.3 }} className="rounded-xl border border-white/20 p-5">
                   <label className="flex cursor-pointer items-start gap-3">
                     <input type="checkbox" checked={declarationAccepted} onChange={(e) => { setDeclarationAccepted(e.target.checked); setErrors((err) => ({ ...err, declaration: "" })); }} className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-300 focus:ring-2 focus:ring-blue-400/40" />
                     <span className="text-sm text-white">I confirm that the information provided above is true and correct to the best of my knowledge.</span>
