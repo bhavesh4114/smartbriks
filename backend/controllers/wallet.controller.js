@@ -373,7 +373,10 @@ export async function investFromWallet(req, res) {
       if (raisedNow >= totalValue) {
         await tx.project.update({
           where: { id: projectId },
-          data: { projectStatus: 'FUNDED' },
+          data: {
+            projectStatus: 'PENDING_APPROVAL',
+            rejectionReason: null,
+          },
         });
       }
 

@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { formatINR } from "../../utils/currency";
 
 type PayoutRow = {
-  id: number;
+  id: number | string;
   project: string;
   investor: string;
   amount: number | string;
@@ -73,13 +73,13 @@ export default function AdminPayouts() {
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-semibold">Payment Approve</h1>
-          <p className="text-gray-600">Monitor all payout transactions</p>
+          <p className="text-gray-600">Monitor payout transactions and approval requests</p>
           {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle>All Payouts</CardTitle>
+            <CardTitle>All Requests</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">

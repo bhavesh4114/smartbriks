@@ -98,6 +98,24 @@ export async function invest(req, res) {
           data: { paymentStatus: 'SUCCESS' },
         });
       }
+
+      const aggregate = await tx.investment.aggregate({
+        where: { projectId: projId, investmentStatus: 'ACTIVE' },
+        _sum: { investedAmount: true },
+      });
+      const totalRaised = Number(
+        aggregate._sum.investedAmount?.toString?.() ?? aggregate._sum.investedAmount ?? 0
+      );
+      const totalValue = Number(project.totalValue?.toString?.() ?? project.totalValue ?? 0);
+      if (totalRaised >= totalValue && totalValue > 0) {
+        await tx.project.update({
+          where: { id: projId },
+          data: {
+            projectStatus: 'PENDING_APPROVAL',
+            rejectionReason: null,
+          },
+        });
+      }
       return inv;
     });
 
