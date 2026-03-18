@@ -9,7 +9,7 @@ export async function getInvestorDashboard(req, res) {
   try {
     const investorId = req.auth.id;
 
-    const [user, investments, returns] = await Promise.all([
+    const [user, wallet, investments, returns, walletTransactions] = await Promise.all([
       prisma.user.findUnique({
         where: { id: investorId },
         select: {
@@ -17,6 +17,12 @@ export async function getInvestorDashboard(req, res) {
           fullName: true,
           kycStatus: true,
         },
+      }),
+      prisma.wallet.upsert({
+        where: { userId: investorId },
+        update: {},
+        create: { userId: investorId },
+        select: { id: true, balance: true },
       }),
       prisma.investment.findMany({
         where: { userId: investorId },
@@ -50,6 +56,19 @@ export async function getInvestorDashboard(req, res) {
               },
             },
           },
+        },
+      }),
+      prisma.walletTransaction.findMany({
+        where: { wallet: { userId: investorId } },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        select: {
+          id: true,
+          amount: true,
+          type: true,
+          description: true,
+          status: true,
+          createdAt: true,
         },
       }),
     ]);
@@ -136,10 +155,19 @@ export async function getInvestorDashboard(req, res) {
           activeProjects,
           totalReturns,
           pendingPayouts: 0,
+          walletBalance: toNumber(wallet.balance?.toString?.() ?? wallet.balance),
         },
         growth: growth.length ? growth : [{ month: 'No Data', value: 0 }],
         activeInvestments,
         notifications,
+        walletTransactions: walletTransactions.map((tx) => ({
+          id: tx.id,
+          amount: toNumber(tx.amount?.toString?.() ?? tx.amount),
+          type: tx.type,
+          description: tx.description,
+          status: tx.status,
+          createdAt: tx.createdAt,
+        })),
       },
     });
   } catch (err) {
@@ -147,4 +175,3 @@ export async function getInvestorDashboard(req, res) {
     return res.status(500).json({ success: false, message: 'Failed to fetch investor dashboard.' });
   }
 }
-

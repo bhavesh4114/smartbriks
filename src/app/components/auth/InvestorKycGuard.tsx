@@ -1,3 +1,4 @@
+import { Navigate } from "react-router";
 import { getEffectiveInvestorUser } from "../../config/kyc";
 
 /**
@@ -10,9 +11,23 @@ export function InvestorKycGuard({
 }: {
   Component: React.ComponentType;
 }) {
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const storedRole = (typeof window !== "undefined" ? localStorage.getItem("userRole") : null)?.toUpperCase();
   const user = getEffectiveInvestorUser();
 
-  if (user?.role && user.role !== "investor") return null;
+  if (!token) {
+    return <Navigate to="/investor/login" replace />;
+  }
+
+  if (storedRole && storedRole !== "INVESTOR") {
+    if (storedRole === "BUILDER") return <Navigate to="/builder/dashboard" replace />;
+    if (storedRole === "ADMIN") return <Navigate to="/admin/dashboard" replace />;
+    return <Navigate to="/login" replace />;
+  }
+
+  if (user?.role && user.role !== "investor") {
+    return <Navigate to="/login" replace />;
+  }
 
   return <Component />;
 }

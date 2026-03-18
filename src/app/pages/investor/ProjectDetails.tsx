@@ -22,12 +22,6 @@ import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { formatINR } from "../../utils/currency";
 
-declare global {
-  interface Window {
-    Razorpay: any;
-  }
-}
-
 type ProjectTimelineItem = {
   phase: string;
   status: string;
@@ -71,7 +65,7 @@ function isProfileCompleteForInvestment(payload: any): boolean {
   const data = payload?.data ?? payload ?? {};
   const user = data?.user ?? {};
   const profile = data?.profile ?? {};
-  const bank = data?.bank ?? {};
+  const bank = data?.bankDetails ?? data?.bank ?? {};
 
   const fullName = pickFirstNonEmpty([profile.fullName, user.fullName, profile.name, user.name]);
   const email = pickFirstNonEmpty([profile.email, user.email]);
@@ -84,7 +78,17 @@ function isProfileCompleteForInvestment(payload: any): boolean {
   const bankName = pickFirstNonEmpty([bank.bankName, profile.bankName, user.bankName]);
   const accountHolder = pickFirstNonEmpty([bank.accountHolderName, profile.accountHolder, profile.accountHolderName, user.accountHolderName]);
   const accountNumber = pickFirstNonEmpty([bank.accountNumber, profile.accountNumber, user.accountNumber]);
-  const ifscOrRouting = pickFirstNonEmpty([bank.ifscCode, profile.ifscCode, bank.routing, profile.routing, profile.swift]);
+  const ifscOrRouting = pickFirstNonEmpty([
+    bank.ifscCode,
+    bank.routingNumber,
+    bank.routing,
+    profile.ifscCode,
+    profile.routingNumber,
+    profile.routing,
+    bank.swiftCode,
+    profile.swiftCode,
+    profile.swift,
+  ]);
 
   const hasPersonalDetails = [fullName, email, mobile, address, city, state, zipCode].every(hasValue);
   const hasBankDetails = [bankName, accountHolder, accountNumber, ifscOrRouting].every(hasValue);
@@ -108,7 +112,6 @@ export default function ProjectDetails() {
   const [profileCheckMessage, setProfileCheckMessage] = useState(
     "Complete personal and bank details in Profile before investing."
   );
-  const razorpayKeyFromEnv = import.meta.env.VITE_RAZORPAY_KEY_ID;
 
   useEffect(() => {
     const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
@@ -223,23 +226,11 @@ export default function ProjectDetails() {
       return;
     }
 
-    const loadRazorpayScript = async () => {
-      if (window.Razorpay) return true;
-      return new Promise<boolean>((resolve) => {
-        const script = document.createElement("script");
-        script.src = "https://checkout.razorpay.com/v1/checkout.js";
-        script.async = true;
-        script.onload = () => resolve(true);
-        script.onerror = () => resolve(false);
-        document.body.appendChild(script);
-      });
-    };
-
-    const startPayment = async () => {
+    const startWalletInvestment = async () => {
       setIsPaying(true);
       setPaymentMessage("");
       try {
-        const orderRes = await fetch("/api/investor/create-order", {
+        const investRes = await fetch("/api/investor/invest", {
           method: "POST",
           headers: {
             Authorization: `Bearer ${token}`,
@@ -250,77 +241,24 @@ export default function ProjectDetails() {
             amount,
           }),
         });
-        const orderJson = await orderRes.json().catch(() => ({}));
-        if (!orderRes.ok || orderJson?.success === false) {
-          setPaymentMessage(orderJson?.message || "Failed to create payment order.");
+        const investJson = await investRes.json().catch(() => ({}));
+        if (!investRes.ok || investJson?.success === false) {
+          setPaymentMessage(investJson?.message || "Investment failed.");
           return;
         }
 
-        const scriptLoaded = await loadRazorpayScript();
-        if (!scriptLoaded || !window.Razorpay) {
-          setPaymentMessage("Unable to load payment gateway. Please try again.");
-          return;
-        }
-
-        const orderData = orderJson?.data || {};
-        const razorpayKey = orderData.keyId || razorpayKeyFromEnv;
-        if (!orderData.orderId || !orderData.amount || !razorpayKey) {
-          setPaymentMessage("Payment configuration is incomplete. Please contact support.");
-          return;
-        }
-
-        const options = {
-          key: razorpayKey,
-          amount: orderData.amount,
-          currency: orderData.currency || "INR",
-          name: "SmartBrick",
-          description: "Project Investment",
-          order_id: orderData.orderId,
-          handler: async (response: {
-            razorpay_order_id: string;
-            razorpay_payment_id: string;
-            razorpay_signature: string;
-          }) => {
-            const verifyRes = await fetch("/api/investor/verify-payment", {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                ...response,
-                projectId: projectDetails.id,
-                amount,
-              }),
-            });
-            const verifyJson = await verifyRes.json().catch(() => ({}));
-            if (!verifyRes.ok || verifyJson?.success === false) {
-              setPaymentMessage(verifyJson?.message || "Payment verification failed.");
-              return;
-            }
-            setPaymentMessage("Investment successful.");
-            setShowInvestDialog(false);
-            setInvestmentAmount("");
-            navigate("/investor/investments");
-          },
-          prefill: {},
-          theme: { color: "#2563eb" },
-        };
-
-        const rzp = new window.Razorpay(options);
-        rzp.on("payment.failed", (response: any) => {
-          const msg = response?.error?.description || "Payment failed. Please try again.";
-          setPaymentMessage(msg);
-        });
-        rzp.open();
+        setPaymentMessage("Investment successful.");
+        setShowInvestDialog(false);
+        setInvestmentAmount("");
+        navigate("/investor/investments");
       } catch {
-        setPaymentMessage("Unable to start payment. Please try again.");
+        setPaymentMessage("Unable to start investment. Please try again.");
       } finally {
         setIsPaying(false);
       }
     };
 
-    startPayment();
+    startWalletInvestment();
   };
 
   const expectedReturns = useMemo(() => {
@@ -329,6 +267,12 @@ export default function ProjectDetails() {
     if (!amount || !roi) return null;
     return amount * (roi / 100);
   }, [investmentAmount, projectDetails?.expected_roi]);
+
+  const isFullyFunded = useMemo(() => {
+    if (!projectDetails) return false;
+    const remaining = Number(projectDetails.total_project_cost) - Number(projectDetails.funds_raised);
+    return remaining <= 0 || Number(projectDetails.progress_percentage) >= 100;
+  }, [projectDetails]);
 
   const toDateLabel = (value: string | null) => {
     if (!value) return "N/A";
@@ -556,8 +500,17 @@ export default function ProjectDetails() {
                 <Dialog open={showInvestDialog} onOpenChange={setShowInvestDialog}>
                   <DialogTrigger asChild>
                     <Button
-                      className="w-full rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
+                      className={`w-full rounded-xl text-white ${
+                        isFullyFunded
+                          ? "bg-emerald-600 hover:bg-emerald-700"
+                          : "bg-blue-600 hover:bg-blue-700"
+                      }`}
+                      disabled={isFullyFunded}
                       onClick={(e) => {
+                        if (isFullyFunded) {
+                          e.preventDefault();
+                          return;
+                        }
                         if (!isKycApproved()) {
                           e.preventDefault();
                           navigate("/investor/kyc/status", { replace: true });
@@ -572,10 +525,19 @@ export default function ProjectDetails() {
                         setPaymentMessage("");
                       }}
                     >
-                      {isProfileComplete ? "Invest Now" : "Complete Profile to Invest"}
+                      {isFullyFunded
+                        ? "Completed"
+                        : isProfileComplete
+                        ? "Invest Now"
+                        : "Complete Profile to Invest"}
                     </Button>
                   </DialogTrigger>
-                  {!isProfileComplete && (
+                  {isFullyFunded && (
+                    <p className="text-xs text-emerald-700">
+                      Funding is complete for this project.
+                    </p>
+                  )}
+                  {!isFullyFunded && !isProfileComplete && (
                     <p className="text-xs text-amber-700">
                       {profileCheckMessage}
                     </p>

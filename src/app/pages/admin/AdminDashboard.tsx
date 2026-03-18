@@ -1,7 +1,7 @@
 import { DashboardLayout } from "../../components/layout/DashboardLayout";
 import { adminMenuItems } from "../../config/menuItems";
 import { StatCard } from "../../components/shared/StatCard";
-import { Users, Building2, FolderKanban, DollarSign } from "lucide-react";
+import { Users, Building2, FolderKanban, Wallet } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import {
   LineChart,
@@ -73,12 +73,12 @@ export default function AdminDashboard() {
             className="bg-white border border-[#E5E7EB] rounded-2xl shadow-sm transition-shadow duration-200 lg:hover:shadow-md"
           />
           <StatCard
-            title="Total Investments"
-            value="₹5,00,00,000"
-            icon={DollarSign}
-            iconBg="bg-amber-50"
-            iconTextColor="text-amber-600"
-            trend={{ value: "+15%", isPositive: true }}
+            title="Wallet Balance"
+            value="Rs 1,20,00,000"
+            icon={Wallet}
+            iconBg="bg-violet-50"
+            iconTextColor="text-violet-600"
+            trend={{ value: "+8%", isPositive: true }}
             className="bg-white border border-[#E5E7EB] rounded-2xl shadow-sm transition-shadow duration-200 lg:hover:shadow-md"
           />
         </div>
@@ -225,3 +225,5 @@ export default function AdminDashboard() {
     </DashboardLayout>
   );
 }
+
+

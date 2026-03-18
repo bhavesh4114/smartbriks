@@ -72,7 +72,7 @@ export default function AdminPayouts() {
     >
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-semibold">Payout Records</h1>
+          <h1 className="text-3xl font-semibold">Payment Approve</h1>
           <p className="text-gray-600">Monitor all payout transactions</p>
           {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
         </div>

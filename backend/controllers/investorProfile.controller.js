@@ -18,7 +18,7 @@ export async function getInvestorProfile(req, res) {
   try {
     const investorId = req.auth.id;
 
-    const [user, profile, investments, kycDocs] = await Promise.all([
+    const [user, wallet, profile, investments, kycDocs] = await Promise.all([
       prisma.user.findUnique({
         where: { id: investorId },
         select: {
@@ -29,6 +29,15 @@ export async function getInvestorProfile(req, res) {
           createdAt: true,
           kycStatus: true,
           isActive: true,
+        },
+      }),
+      prisma.wallet.upsert({
+        where: { userId: investorId },
+        update: {},
+        create: { userId: investorId },
+        select: {
+          id: true,
+          balance: true,
         },
       }),
       prisma.investorProfile.findUnique({
@@ -167,6 +176,10 @@ export async function getInvestorProfile(req, res) {
           total_investments: totalInvested?.toString?.() ?? totalInvested,
           active_projects: activeProjects,
         },
+        wallet: {
+          id: wallet.id,
+          balance: wallet.balance?.toString?.() ?? wallet.balance,
+        },
         kyc_documents: kycDocs.map((d) => ({
           id: d.id,
           documentType: d.documentType,
@@ -182,6 +195,42 @@ export async function getInvestorProfile(req, res) {
   } catch (err) {
     console.error('getInvestorProfile:', err);
     res.status(500).json({ success: false, message: 'Failed to fetch investor profile.' });
+  }
+}
+
+/**
+ * Get investor identity basics for KYC prefill
+ * GET /api/investor/profile/identity
+ */
+export async function getInvestorIdentity(req, res) {
+  try {
+    const investorId = req.auth.id;
+    const user = await prisma.user.findUnique({
+      where: { id: investorId },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        mobileNumber: true,
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Investor not found.' });
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        id: user.id,
+        fullName: user.fullName || '',
+        email: user.email || '',
+        mobileNumber: user.mobileNumber || '',
+      },
+    });
+  } catch (err) {
+    console.error('getInvestorIdentity:', err);
+    return res.status(500).json({ success: false, message: 'Failed to fetch investor identity.' });
   }
 }
 
@@ -303,7 +352,12 @@ export async function updateInvestorBankDetails(req, res) {
 export async function changeInvestorPassword(req, res) {
   try {
     const investorId = req.auth.id;
-    const { currentPassword, newPassword, confirmPassword } = req.body ?? {};
+    const currentRaw = req.body?.currentPassword ?? req.body?.oldPassword;
+    const newRaw = req.body?.newPassword;
+    const confirmRaw = req.body?.confirmPassword ?? req.body?.confirmNewPassword;
+    const currentPassword = typeof currentRaw === 'string' ? currentRaw.trim() : '';
+    const newPassword = typeof newRaw === 'string' ? newRaw.trim() : '';
+    const confirmPassword = typeof confirmRaw === 'string' ? confirmRaw.trim() : '';
 
     if (!currentPassword || !newPassword || !confirmPassword) {
       return res.status(400).json({ success: false, message: 'All password fields are required.' });
@@ -324,7 +378,9 @@ export async function changeInvestorPassword(req, res) {
       return res.status(404).json({ success: false, message: 'Investor not found.' });
     }
 
-    const validCurrentPassword = await bcrypt.compare(currentPassword, investor.password);
+    const validCurrentPassword =
+      (await bcrypt.compare(currentPassword, investor.password)) ||
+      investor.password === currentPassword;
     if (!validCurrentPassword) {
       return res.status(400).json({ success: false, message: 'Current password is incorrect.' });
     }

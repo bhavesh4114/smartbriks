@@ -10,6 +10,9 @@ import { Label } from "../../components/ui/label";
 import { SiteHeader } from "../../components/layout/SiteHeader";
 import { SiteFooter } from "../../components/layout/SiteFooter";
 
+const env = (import.meta as unknown as { env?: { VITE_API_URL?: string } }).env;
+const API_BASE = env?.VITE_API_URL ?? "";
+
 const STEPS = [
   "Company",
   "Address",
@@ -38,6 +41,50 @@ const INDIAN_STATES = [
 const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
 const PINCODE_REGEX = /^\d{6}$/;
 const IFSC_REGEX = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+const BUILDER_KYC_DRAFT_KEY = "builder_kyc_draft_v1";
+const FILE_FIELDS = new Set([
+  "companyPanFile",
+  "gstCertificateFile",
+  "cinLlpinFile",
+  "reraCertificateFile",
+  "cancelledChequeFile",
+  "idProofFile",
+  "selfieWithIdFile",
+]);
+
+const INITIAL_KYC_DATA = {
+  companyName: "",
+  businessType: "",
+  yearOfEstablishment: "",
+  companyPan: "",
+  gstNumber: "",
+  officialEmail: "",
+  officialMobile: "",
+  addressLine1: "",
+  addressLine2: "",
+  city: "",
+  state: "",
+  pincode: "",
+  country: "India",
+  sameAsSiteOffice: false,
+  companyPanFile: "",
+  gstCertificateFile: "",
+  cinLlpinFile: "",
+  reraNumber: "",
+  reraCertificateFile: "",
+  accountHolderName: "",
+  bankName: "",
+  accountNumber: "",
+  ifscCode: "",
+  cancelledChequeFile: "",
+  authPersonName: "",
+  designation: "",
+  authPersonMobile: "",
+  authPersonEmail: "",
+  authPersonPan: "",
+  idProofFile: "",
+  selfieWithIdFile: "",
+};
 
 function maskPan(pan: string): string {
   const s = pan.replace(/\s/g, "");
@@ -59,39 +106,7 @@ export default function BuilderKyc() {
     ifscCode: "",
     authPersonPan: "",
   });
-  const [kycData, setKycData] = useState({
-    companyName: "",
-    businessType: "",
-    yearOfEstablishment: "",
-    companyPan: "",
-    gstNumber: "",
-    officialEmail: "",
-    officialMobile: "",
-    addressLine1: "",
-    addressLine2: "",
-    city: "",
-    state: "",
-    pincode: "",
-    country: "India",
-    sameAsSiteOffice: false,
-    companyPanFile: "",
-    gstCertificateFile: "",
-    cinLlpinFile: "",
-    reraNumber: "",
-    reraCertificateFile: "",
-    accountHolderName: "",
-    bankName: "",
-    accountNumber: "",
-    ifscCode: "",
-    cancelledChequeFile: "",
-    authPersonName: "",
-    designation: "",
-    authPersonMobile: "",
-    authPersonEmail: "",
-    authPersonPan: "",
-    idProofFile: "",
-    selfieWithIdFile: "",
-  });
+  const [kycData, setKycData] = useState(INITIAL_KYC_DATA);
   const [officialMobileVerified, setOfficialMobileVerified] = useState(true);
   const [authMobileVerified, setAuthMobileVerified] = useState(true);
   const [declarationAccepted, setDeclarationAccepted] = useState(false);
@@ -114,6 +129,25 @@ export default function BuilderKyc() {
     selfieWithIdFile: null,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const getBuilderKycSubmitUrls = () => {
+    const urls: string[] = [];
+    const withBase = (base: string) => `${base}/api/builder/kyc`.replace(/([^:]\/)\/+/g, "$1");
+
+    if (API_BASE) {
+      urls.push(withBase(API_BASE));
+    } else {
+      urls.push("/api/builder/kyc");
+      if (
+        typeof window !== "undefined" &&
+        (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
+      ) {
+        urls.push("http://localhost:4000/api/builder/kyc");
+      }
+    }
+
+    return [...new Set(urls)];
+  };
 
   const validateStep1 = () => {
     const nextErrors: Record<string, string> = {};
@@ -141,9 +175,9 @@ export default function BuilderKyc() {
 
   const validateStep3 = () => {
     const nextErrors: Record<string, string> = {};
-    if (!kycData.companyPanFile) nextErrors.companyPanFile = "Company PAN Card upload is required";
-    if (!kycData.gstCertificateFile) nextErrors.gstCertificateFile = "GST Certificate upload is required";
-    if (!kycData.reraCertificateFile) nextErrors.reraCertificateFile = "RERA Certificate upload is required";
+    if (!documentFiles.companyPanFile) nextErrors.companyPanFile = "Company PAN Card upload is required";
+    if (!documentFiles.gstCertificateFile) nextErrors.gstCertificateFile = "GST Certificate upload is required";
+    if (!documentFiles.reraCertificateFile) nextErrors.reraCertificateFile = "RERA Certificate upload is required";
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   };
@@ -155,7 +189,7 @@ export default function BuilderKyc() {
     if (!sensitiveValues.accountNumber.trim()) nextErrors.accountNumber = "Account number is required";
     if (!sensitiveValues.ifscCode.trim()) nextErrors.ifscCode = "IFSC code is required";
     else if (!IFSC_REGEX.test(sensitiveValues.ifscCode.replace(/\s/g, ""))) nextErrors.ifscCode = "Invalid IFSC (e.g. SBIN0001234)";
-    if (!kycData.cancelledChequeFile) nextErrors.cancelledChequeFile = "Cancelled cheque upload is required";
+    if (!documentFiles.cancelledChequeFile) nextErrors.cancelledChequeFile = "Cancelled cheque upload is required";
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   };
@@ -168,7 +202,7 @@ export default function BuilderKyc() {
     if (!kycData.authPersonEmail.trim()) nextErrors.authPersonEmail = "Email is required";
     if (!sensitiveValues.authPersonPan.trim()) nextErrors.authPersonPan = "PAN is required";
     else if (!PAN_REGEX.test(sensitiveValues.authPersonPan.replace(/\s/g, ""))) nextErrors.authPersonPan = "Invalid PAN format";
-    if (!kycData.idProofFile) nextErrors.idProofFile = "ID Proof upload is required";
+    if (!documentFiles.idProofFile) nextErrors.idProofFile = "ID Proof upload is required";
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   };
@@ -234,15 +268,44 @@ export default function BuilderKyc() {
           companyPan: sensitiveValues.companyPan?.trim()?.toUpperCase() || "",
         });
 
-        const res = await fetch("/api/builder/kyc", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: formData,
-        });
-        const data = await res.json().catch(() => ({}));
+        let res: Response | null = null;
+        let data: Record<string, unknown> = {};
+        let networkError: unknown = null;
+
+        for (const url of getBuilderKycSubmitUrls()) {
+          try {
+            res = await fetch(url, {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+              body: formData,
+            });
+            data = await res.json().catch(() => ({}));
+            networkError = null;
+            break;
+          } catch (err) {
+            networkError = err;
+          }
+        }
+
+        if (!res) {
+          const details =
+            networkError instanceof Error && networkError.message
+              ? ` (${networkError.message})`
+              : "";
+          setErrors((err) => ({
+            ...err,
+            declaration:
+              `Unable to reach server. Please ensure backend is running on port 4000.${details}`,
+          }));
+          return;
+        }
+
         if (res.ok && data?.success) {
+          if (typeof window !== "undefined") {
+            localStorage.removeItem(BUILDER_KYC_DRAFT_KEY);
+          }
           syncBuilderKycStatus("pending");
           navigate("/builder/dashboard", { replace: true });
           return;
@@ -315,6 +378,71 @@ export default function BuilderKyc() {
   useEffect(() => {
     if (getBuilderKycStatus() === "not_started") setBuilderKycStatus("in_progress");
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const raw = localStorage.getItem(BUILDER_KYC_DRAFT_KEY);
+    if (!raw) return;
+
+    try {
+      const parsed = JSON.parse(raw) as {
+        currentStep?: number;
+        kycData?: Partial<typeof INITIAL_KYC_DATA>;
+        sensitiveValues?: Partial<typeof sensitiveValues>;
+        officialMobileVerified?: boolean;
+        authMobileVerified?: boolean;
+        declarationAccepted?: boolean;
+      };
+
+      if (typeof parsed.currentStep === "number" && parsed.currentStep >= 1 && parsed.currentStep <= 6) {
+        setCurrentStep(parsed.currentStep);
+      }
+      if (parsed.kycData && typeof parsed.kycData === "object") {
+        const restoredKycData = { ...INITIAL_KYC_DATA, ...parsed.kycData };
+        FILE_FIELDS.forEach((field) => {
+          (restoredKycData as Record<string, unknown>)[field] = "";
+        });
+        setKycData(restoredKycData);
+      }
+      if (parsed.sensitiveValues && typeof parsed.sensitiveValues === "object") {
+        setSensitiveValues((prev) => ({ ...prev, ...parsed.sensitiveValues }));
+      }
+      if (typeof parsed.officialMobileVerified === "boolean") {
+        setOfficialMobileVerified(parsed.officialMobileVerified);
+      }
+      if (typeof parsed.authMobileVerified === "boolean") {
+        setAuthMobileVerified(parsed.authMobileVerified);
+      }
+      if (typeof parsed.declarationAccepted === "boolean") {
+        setDeclarationAccepted(parsed.declarationAccepted);
+      }
+    } catch {
+      localStorage.removeItem(BUILDER_KYC_DRAFT_KEY);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const dataForDraft = Object.entries(kycData).reduce((acc, [key, value]) => {
+      if (!FILE_FIELDS.has(key)) {
+        (acc as Record<string, unknown>)[key] = value;
+      }
+      return acc;
+    }, {} as Partial<typeof INITIAL_KYC_DATA>);
+
+    localStorage.setItem(
+      BUILDER_KYC_DRAFT_KEY,
+      JSON.stringify({
+        currentStep,
+        kycData: dataForDraft,
+        sensitiveValues,
+        officialMobileVerified,
+        authMobileVerified,
+        declarationAccepted,
+      })
+    );
+  }, [currentStep, kycData, sensitiveValues, officialMobileVerified, authMobileVerified, declarationAccepted]);
 
   const inputClass =
     "w-full rounded-xl border border-white/30 bg-white/20 py-3 px-4 text-base text-white outline-none transition-all duration-200 placeholder:text-white/60 focus:border-blue-400 focus:ring-2 focus:ring-blue-400/40 focus:bg-white/25";

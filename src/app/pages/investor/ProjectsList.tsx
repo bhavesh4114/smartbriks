@@ -40,11 +40,16 @@ export default function ProjectsList() {
         const res = await fetch("/api/investor/projects", {
           headers: { Authorization: `Bearer ${token}` },
         });
-        if (res.status === 401 || res.status === 403) {
+        if (res.status === 401) {
           navigate("/investor/login", { replace: true });
           return;
         }
         const data = await res.json().catch(() => ({}));
+        if (res.status === 403) {
+          setError(data?.message || "You are not allowed to access projects right now.");
+          setProjects([]);
+          return;
+        }
         if (!res.ok || !data?.success) {
           setError(data?.message || "Failed to load projects.");
           return;

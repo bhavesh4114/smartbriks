@@ -374,6 +374,46 @@ export default function InvestorKyc() {
   }, []);
 
   useEffect(() => {
+    const applyIdentity = (fullName?: string, email?: string, mobile?: string) => {
+      setKycData((d) => ({
+        ...d,
+        fullName: (fullName || "").trim() || d.fullName,
+        email: (email || "").trim() || d.email,
+        mobile: (mobile || "").trim() || d.mobile,
+      }));
+    };
+
+    try {
+      const rawUser = localStorage.getItem("user");
+      if (rawUser) {
+        const parsed = JSON.parse(rawUser) as {
+          fullName?: string;
+          email?: string;
+          mobileNumber?: string;
+          mobile?: string;
+        };
+        applyIdentity(parsed.fullName, parsed.email, parsed.mobileNumber || parsed.mobile);
+      }
+    } catch {
+      // ignore local parse errors
+    }
+
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if (!token) return;
+
+    fetch("/api/investor/profile/identity", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(async (res) => {
+        if (!res.ok) return;
+        const data = await res.json().catch(() => ({}));
+        const user = data?.data || {};
+        applyIdentity(user.fullName, user.email, user.mobileNumber || user.mobile);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
     const payload = {
       kycData,
       currentStep,
@@ -641,8 +681,9 @@ export default function InvestorKyc() {
                       type="text"
                       placeholder="e.g. Johnathan Doe"
                       value={kycData.fullName}
-                      onChange={(e) => setKycData((d) => ({ ...d, fullName: e.target.value }))}
-                      className={inputClass}
+                      readOnly
+                      disabled
+                      className={inputClassDisabled}
                     />
                     {errors.fullName && <p className="text-sm text-red-300">{errors.fullName}</p>}
                   </motion.div>
@@ -655,8 +696,9 @@ export default function InvestorKyc() {
                       type="email"
                       placeholder="john.doe@example.com"
                       value={kycData.email}
-                      onChange={(e) => setKycData((d) => ({ ...d, email: e.target.value }))}
-                      className={inputClass}
+                      readOnly
+                      disabled
+                      className={inputClassDisabled}
                     />
                     {errors.email && <p className="text-sm text-red-300">{errors.email}</p>}
                   </motion.div>
@@ -673,8 +715,9 @@ export default function InvestorKyc() {
                         type="tel"
                         placeholder="+91 98765 43210"
                         value={kycData.mobile}
-                        onChange={(e) => setKycData((d) => ({ ...d, mobile: e.target.value }))}
-                        className={`${inputClass} ${mobileVerified ? "pr-28" : ""}`}
+                        readOnly
+                        disabled
+                        className={`${inputClassDisabled} ${mobileVerified ? "pr-28" : ""}`}
                       />
                       {mobileVerified && (
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 rounded bg-emerald-500 px-2 py-0.5 text-xs font-medium text-white">

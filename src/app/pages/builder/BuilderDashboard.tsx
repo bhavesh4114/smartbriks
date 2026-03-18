@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { BuilderLayout } from "../../components/layout/BuilderLayout";
 import { StatCard } from "../../components/shared/StatCard";
-import { FolderKanban, Users, DollarSign, TrendingUp, TriangleAlert } from "lucide-react";
+import { FolderKanban, Users, DollarSign, TrendingUp, TriangleAlert, Wallet } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
@@ -98,9 +98,13 @@ export default function BuilderDashboard() {
       })
         .then(async (res) => {
           const data = await res.json().catch(() => ({}));
-          if (res.status === 401 || res.status === 403) {
-            setDashboardError("Insufficient permissions to load dashboard data.");
+          if (res.status === 401) {
+            navigate("/builder/login", { replace: true });
+            return;
+          }
+          if (res.status === 403) {
             setDashboard(null);
+            navigate("/builder/login", { replace: true });
             return;
           }
           if (!res.ok || !data?.success || !data?.data) {
@@ -250,7 +254,7 @@ export default function BuilderDashboard() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid min-w-0 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid min-w-0 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-5">
           <StatCard
             title="Total Projects"
             value={dashboardLoading ? "Loading..." : stats?.total_projects?.toString() ?? "--"}
@@ -295,6 +299,20 @@ export default function BuilderDashboard() {
             icon={TrendingUp}
             iconBg="bg-amber-50"
             iconTextColor="text-amber-600"
+            className="bg-white border border-[#E5E7EB] rounded-2xl shadow-sm"
+          />
+          <StatCard
+            title="Wallet Balance"
+            value={
+              isBuilderRestricted
+                ? "Locked until KYC approval"
+                : dashboardLoading
+                ? "Loading..."
+                : formatINR(Number(stats?.funds_raised ?? 0))
+            }
+            icon={Wallet}
+            iconBg="bg-slate-100"
+            iconTextColor="text-slate-700"
             className="bg-white border border-[#E5E7EB] rounded-2xl shadow-sm"
           />
         </div>

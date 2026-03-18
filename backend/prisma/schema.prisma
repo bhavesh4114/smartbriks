@@ -49,6 +49,17 @@ enum PaymentStatus {
   REFUNDED
 }
 
+enum WalletTransactionType {
+  CREDIT
+  DEBIT
+}
+
+enum WalletTransactionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
 // =====================================
 // MODELS
 // =====================================
@@ -70,9 +81,43 @@ model User {
   kyc         KYC[]
   userReturns UserReturn[]
   profile     InvestorProfile?
+  wallet      Wallet?
 
   @@map("users")
-} ,.
+}
+
+model Wallet {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @unique @map("user_id")
+  balance   Decimal  @default(0) @db.Decimal(18, 2)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions WalletTransaction[]
+
+  @@map("wallets")
+}
+
+model WalletTransaction {
+  id          Int                     @id @default(autoincrement())
+  walletId    Int                     @map("wallet_id")
+  amount      Decimal                 @db.Decimal(18, 2)
+  type        WalletTransactionType
+  description String
+  status      WalletTransactionStatus @default(PENDING)
+  externalRef String?                 @unique @map("external_ref")
+  metadata    Json?
+  createdAt   DateTime                @default(now()) @map("created_at")
+  updatedAt   DateTime                @updatedAt @map("updated_at")
+
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@index([walletId])
+  @@index([status])
+  @@index([type])
+  @@map("wallet_transactions")
+}
 
 model InvestorProfile {
   id                Int      @id @default(autoincrement())

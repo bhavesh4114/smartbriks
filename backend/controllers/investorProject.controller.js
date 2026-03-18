@@ -135,7 +135,8 @@ export async function listApprovedProjectsForInvestor(req, res) {
 
 /**
  * GET /api/investor/projects/:projectId
- * Investor can access only approved projects.
+ * Investor can access approved projects, and also non-approved projects
+ * where they already have an investment.
  */
 export async function getApprovedProjectDetailsForInvestor(req, res) {
   try {
@@ -174,14 +175,25 @@ export async function getApprovedProjectDetailsForInvestor(req, res) {
       return res.status(404).json({ success: false, message: 'Project not found.' });
     }
 
-    if (project.projectStatus !== 'APPROVED') {
-      console.warn('getApprovedProjectDetailsForInvestor: project not approved', {
-        projectId,
-        status: project.projectStatus,
-        requestedBy: req.auth?.id,
-        role: req.auth?.role,
-      });
-      return res.status(403).json({ success: false, message: 'Project is not available for investors.' });
+    const isPubliclyVisible = project.projectStatus === 'APPROVED';
+    if (!isPubliclyVisible) {
+      const investorId = req.auth?.id;
+      const alreadyInvested = investorId
+        ? await prisma.investment.findFirst({
+            where: { projectId, userId: investorId },
+            select: { id: true },
+          })
+        : null;
+
+      if (!alreadyInvested) {
+        console.warn('getApprovedProjectDetailsForInvestor: project blocked for non-investor access', {
+          projectId,
+          status: project.projectStatus,
+          requestedBy: req.auth?.id,
+          role: req.auth?.role,
+        });
+        return res.status(403).json({ success: false, message: 'Project is not available for investors.' });
+      }
     }
 
     console.log('getApprovedProjectDetailsForInvestor: success', {

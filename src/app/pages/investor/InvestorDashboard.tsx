@@ -3,7 +3,7 @@ import { useNavigate } from "react-router";
 import { DashboardLayout } from "../../components/layout/DashboardLayout";
 import { investorMenuItems } from "../../config/menuItems";
 import { StatCard } from "../../components/shared/StatCard";
-import { Wallet, FolderKanban, TrendingUp, Clock, TriangleAlert } from "lucide-react";
+import { Wallet, FolderKanban, TrendingUp, Clock, TriangleAlert, PiggyBank } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
@@ -40,17 +40,27 @@ type DashboardData = {
     activeProjects: number;
     totalReturns: number;
     pendingPayouts: number;
+    walletBalance?: number;
   };
   growth: Array<{ month: string; value: number }>;
   activeInvestments: Array<{ id: number; name: string; invested: number; roi: string; status: string }>;
   notifications: Array<{ id: string; title: string; message: string; time: string; type: string }>;
+  walletTransactions: Array<{
+    id: number;
+    amount: number;
+    type: "CREDIT" | "DEBIT";
+    description: string;
+    status: "PENDING" | "SUCCESS" | "FAILED";
+    createdAt: string | Date;
+  }>;
 };
 
 const EMPTY_DASHBOARD: DashboardData = {
-  stats: { totalInvested: 0, activeProjects: 0, totalReturns: 0, pendingPayouts: 0 },
+  stats: { totalInvested: 0, activeProjects: 0, totalReturns: 0, pendingPayouts: 0, walletBalance: 0 },
   growth: [{ month: "No Data", value: 0 }],
   activeInvestments: [],
   notifications: [],
+  walletTransactions: [],
 };
 
 export default function InvestorDashboard() {
@@ -102,6 +112,7 @@ export default function InvestorDashboard() {
                 activeProjects: Number(d.data?.stats?.activeProjects ?? 0),
                 totalReturns: Number(d.data?.stats?.totalReturns ?? 0),
                 pendingPayouts: Number(d.data?.stats?.pendingPayouts ?? 0),
+                walletBalance: Number(d.data?.stats?.walletBalance ?? d.data?.stats?.totalReturns ?? 0),
               },
               growth:
                 Array.isArray(d.data?.growth) && d.data.growth.length
@@ -109,6 +120,7 @@ export default function InvestorDashboard() {
                   : [{ month: "No Data", value: 0 }],
               activeInvestments: Array.isArray(d.data?.activeInvestments) ? d.data.activeInvestments : [],
               notifications: Array.isArray(d.data?.notifications) ? d.data.notifications : [],
+              walletTransactions: Array.isArray(d.data?.walletTransactions) ? d.data.walletTransactions : [],
             });
           }
         })
@@ -168,7 +180,7 @@ export default function InvestorDashboard() {
           <p className="mt-1 text-[#6B7280]">Here's your investment overview</p>
         </div>
 
-        <div className="grid min-w-0 grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid min-w-0 grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-5">
           <StatCard
             title="Total Invested"
             value={formatINR(dashboardData.stats.totalInvested)}
@@ -199,6 +211,14 @@ export default function InvestorDashboard() {
             icon={Clock}
             iconBg="bg-amber-50"
             iconTextColor="text-amber-600"
+            className="bg-white border border-[#E5E7EB] rounded-2xl shadow-sm transition-shadow duration-200 lg:hover:shadow-md"
+          />
+          <StatCard
+            title="Wallet Balance"
+            value={isSensitiveLocked ? "Locked until KYC approval" : formatINR(dashboardData.stats.walletBalance ?? 0)}
+            icon={PiggyBank}
+            iconBg="bg-violet-50"
+            iconTextColor="text-violet-600"
             className="bg-white border border-[#E5E7EB] rounded-2xl shadow-sm transition-shadow duration-200 lg:hover:shadow-md"
           />
         </div>
@@ -300,6 +320,35 @@ export default function InvestorDashboard() {
             </CardContent>
           </Card>
         </div>
+
+        <Card className="bg-white border border-[#E5E7EB] rounded-2xl shadow-sm min-h-0">
+          <CardHeader>
+            <CardTitle className="text-[#111827] font-semibold">Wallet Transactions</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {dashboardData.walletTransactions.map((tx) => (
+                <div key={tx.id} className="flex items-center justify-between border-b border-[#E5E7EB] pb-3 last:border-0 last:pb-0">
+                  <div>
+                    <p className="font-medium text-[#111827]">{tx.description}</p>
+                    <p className="text-xs text-[#6B7280]">
+                      {new Date(tx.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className={`font-semibold ${tx.type === "CREDIT" ? "text-emerald-600" : "text-red-600"}`}>
+                      {tx.type === "CREDIT" ? "+" : "-"}{formatINR(tx.amount)}
+                    </p>
+                    <p className="text-xs text-[#6B7280]">{tx.status}</p>
+                  </div>
+                </div>
+              ))}
+              {dashboardData.walletTransactions.length === 0 && (
+                <p className="text-sm text-[#6B7280]">No wallet transactions yet.</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </DashboardLayout>
   );

@@ -83,12 +83,17 @@ export default function MyInvestments() {
           headers: { Authorization: `Bearer ${token}` },
         });
 
-        if (res.status === 401 || res.status === 403) {
+        if (res.status === 401) {
           navigate("/investor/login", { replace: true });
           return;
         }
 
         const json = await res.json().catch(() => ({}));
+        if (res.status === 403) {
+          setError(json?.message || "You are not allowed to access investments right now.");
+          setInvestments([]);
+          return;
+        }
         if (!res.ok || json?.success === false) {
           setError(json?.message || "Failed to load investments.");
           setInvestments([]);

@@ -1,7 +1,7 @@
 ﻿import { BuilderLayout } from "../../components/layout/BuilderLayout";
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router";
-import { Upload } from "lucide-react";
+import { Upload, IndianRupee } from "lucide-react";
 
 type SubmitStatus = "DRAFT" | "PENDING_APPROVAL";
 
@@ -148,7 +148,9 @@ export default function AddNewProject() {
                   Total Project Cost <span className="text-red-500 ml-0.5">*</span>
                 </label>
                 <div className="relative">
-                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">â‚¹</span>
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                    <IndianRupee size={16} />
+                  </span>
                   <input
                     type="text"
                     value={formData.totalCost}
@@ -190,7 +192,9 @@ export default function AddNewProject() {
                   Minimum Investment <span className="text-red-500 ml-0.5">*</span>
                 </label>
                 <div className="relative">
-                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">â‚¹</span>
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                    <IndianRupee size={16} />
+                  </span>
                   <input
                     type="text"
                     value={formData.minInvestment}

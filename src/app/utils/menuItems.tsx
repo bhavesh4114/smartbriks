@@ -124,7 +124,7 @@ export const adminMenuItems = [
     icon: <Wallet size={20} />,
   },
   {
-    label: "Payout Records",
+    label: "Payment Approve",
     path: "/admin/payouts",
     icon: <DollarSign size={20} />,
   },

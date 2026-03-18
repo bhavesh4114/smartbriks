@@ -142,7 +142,7 @@ export const adminMenuItems: SidebarItem[] = [
     href: "/admin/investments",
   },
   {
-    title: "Payout Records",
+    title: "Payment Approve",
     icon: DollarSign,
     href: "/admin/payouts",
   },

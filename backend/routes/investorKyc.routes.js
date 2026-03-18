@@ -6,6 +6,7 @@ import { submitInvestorKyc, getInvestorKycStatus } from '../controllers/investor
 import { getInvestorDashboard } from '../controllers/investorDashboard.controller.js';
 import {
   getInvestorProfile,
+  getInvestorIdentity,
   updateInvestorProfile,
   updateInvestorBankDetails,
   changeInvestorPassword,
@@ -15,6 +16,13 @@ import {
   listApprovedProjectsForInvestor,
   getApprovedProjectDetailsForInvestor,
 } from '../controllers/investorProject.controller.js';
+import {
+  getWallet,
+  getWalletTransactions,
+  addMoney,
+  verifyAddMoney,
+  investFromWallet,
+} from '../controllers/wallet.controller.js';
 
 const router = Router();
 
@@ -22,9 +30,15 @@ router.get('/dashboard', authenticate, investorOnly, getInvestorDashboard);
 router.post('/kyc', authenticate, investorOnly, uploadInvestorKycDocuments, submitInvestorKyc);
 router.get('/kyc/status', authenticate, investorOnly, getInvestorKycStatus);
 router.get('/profile', authenticate, investorOnly, getInvestorProfile);
+router.get('/profile/identity', authenticate, investorOnly, getInvestorIdentity);
 router.patch('/profile', authenticate, investorOnly, updateInvestorProfile);
 router.patch('/profile/bank', authenticate, investorOnly, updateInvestorBankDetails);
 router.post('/change-password', authenticate, investorOnly, changeInvestorPassword);
+router.get('/wallet', authenticate, investorOnly, getWallet);
+router.get('/transactions', authenticate, investorOnly, getWalletTransactions);
+router.post('/add-money', authenticate, investorOnly, addMoney);
+router.post('/add-money/verify', authenticate, investorOnly, verifyAddMoney);
+router.post('/invest', authenticate, investorOnly, investFromWallet);
 router.get('/projects', authenticate, investorOnly, listApprovedProjectsForInvestor);
 router.get('/projects/:projectId', authenticate, investorOnly, getApprovedProjectDetailsForInvestor);
 router.post('/create-order', authenticate, investorOnly, createInvestorOrder);

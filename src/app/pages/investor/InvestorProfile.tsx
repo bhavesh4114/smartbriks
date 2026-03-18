@@ -7,9 +7,23 @@ import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Badge } from "../../components/ui/badge";
-import { User, Mail, Phone, MapPin, CreditCard, CheckCircle, AlertCircle } from "lucide-react";
+import { User, Mail, Phone, MapPin, CreditCard, CheckCircle, AlertCircle, Eye, EyeOff } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../../components/ui/dialog";
 import { formatINR } from "../../utils/currency";
+
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
+}
 
 type KycDoc = {
   id: number;
@@ -75,6 +89,10 @@ type InvestorProfileData = {
     total_investments: number | string;
     active_projects: number;
   };
+  wallet?: {
+    id: number;
+    balance: number | string;
+  };
   kyc_documents: KycDoc[];
 };
 
@@ -100,6 +118,10 @@ export default function InvestorProfile() {
   const [savingPersonal, setSavingPersonal] = useState(false);
   const [savingBank, setSavingBank] = useState(false);
   const [savingSecurity, setSavingSecurity] = useState(false);
+  const [addMoneyOpen, setAddMoneyOpen] = useState(false);
+  const [addMoneyAmount, setAddMoneyAmount] = useState("");
+  const [addingMoney, setAddingMoney] = useState(false);
+  const [walletFeedback, setWalletFeedback] = useState("");
 
   const [form, setForm] = useState({
     firstName: "",
@@ -120,6 +142,11 @@ export default function InvestorProfile() {
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
+  });
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    next: false,
+    confirm: false,
   });
 
   const pickFirst = (...values: Array<string | null | undefined>) =>
@@ -187,11 +214,16 @@ export default function InvestorProfile() {
       const res = await fetch("/api/investor/profile", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.status === 401 || res.status === 403) {
+      if (res.status === 401) {
         navigate("/investor/login", { replace: true });
         return null;
       }
       const data = await res.json().catch(() => ({}));
+      if (res.status === 403) {
+        setError(data?.message || "You are not allowed to access this profile.");
+        setProfile(null);
+        return null;
+      }
       if (!res.ok || !data?.success || !data?.data) {
         setError(data?.message || "Failed to load profile.");
         setProfile(null);
@@ -265,6 +297,109 @@ export default function InvestorProfile() {
     }
 
     return { ok: false, message: latestMessage };
+  };
+
+  const loadRazorpayScript = async () => {
+    if (window.Razorpay) return true;
+    return new Promise<boolean>((resolve) => {
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.async = true;
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  const handleAddMoney = async () => {
+    setWalletFeedback("");
+    const amount = Number(addMoneyAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setWalletFeedback("Enter a valid amount.");
+      return;
+    }
+
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if (!token) {
+      navigate("/investor/login", { replace: true });
+      return;
+    }
+
+    setAddingMoney(true);
+    try {
+      const res = await fetch("/api/investor/add-money", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ amount }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.success === false) {
+        setWalletFeedback(data?.message || "Failed to create top-up request.");
+        return;
+      }
+
+      if (data?.data?.mode === "mock") {
+        setWalletFeedback("Wallet top-up successful.");
+        setAddMoneyAmount("");
+        await fetchProfile(false);
+        return;
+      }
+
+      const orderData = data?.data || {};
+      const scriptLoaded = await loadRazorpayScript();
+      if (!scriptLoaded || !window.Razorpay) {
+        setWalletFeedback("Unable to load payment gateway.");
+        return;
+      }
+
+      const options = {
+        key: orderData.keyId,
+        amount: orderData.amount,
+        currency: orderData.currency || "INR",
+        name: "SmartBrick",
+        description: "Wallet Top-up",
+        order_id: orderData.orderId,
+        handler: async (response: {
+          razorpay_order_id: string;
+          razorpay_payment_id: string;
+          razorpay_signature: string;
+        }) => {
+          const verifyRes = await fetch("/api/investor/add-money/verify", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(response),
+          });
+          const verifyData = await verifyRes.json().catch(() => ({}));
+          if (!verifyRes.ok || verifyData?.success === false) {
+            setWalletFeedback(verifyData?.message || "Payment verification failed.");
+            return;
+          }
+          setWalletFeedback("Wallet top-up successful.");
+          setAddMoneyAmount("");
+          setAddMoneyOpen(false);
+          await fetchProfile(false);
+        },
+        theme: { color: "#2563eb" },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on("payment.failed", (response: any) => {
+        const message = response?.error?.description || "Payment failed.";
+        setWalletFeedback(message);
+      });
+      rzp.open();
+    } catch {
+      setWalletFeedback("Network error while adding money.");
+    } finally {
+      setAddingMoney(false);
+    }
   };
 
   const handlePersonalSave = async (e: React.FormEvent) => {
@@ -364,51 +499,70 @@ export default function InvestorProfile() {
     setSavingBank(false);
   };
 
-  const handlePasswordSave = async (e: React.FormEvent) => {
+  const handlePasswordSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSecurityFeedback("");
 
-    if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
+    const formData = new FormData(e.currentTarget);
+    const currentPassword = String(formData.get("currentPassword") ?? passwordForm.currentPassword).trim();
+    const newPassword = String(formData.get("newPassword") ?? passwordForm.newPassword).trim();
+    const confirmPassword = String(formData.get("confirmPassword") ?? passwordForm.confirmPassword).trim();
+
+    setPasswordForm({ currentPassword, newPassword, confirmPassword });
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
       setSecurityFeedback("All password fields are required.");
       return;
     }
-    if (passwordForm.newPassword.length < 8) {
+    if (newPassword.length < 8) {
       setSecurityFeedback("New password must be at least 8 characters.");
       return;
     }
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+    if (newPassword !== confirmPassword) {
       setSecurityFeedback("New password and confirm password do not match.");
       return;
     }
 
     setSavingSecurity(true);
-    const payload = {
-      currentPassword: passwordForm.currentPassword,
-      newPassword: passwordForm.newPassword,
-      confirmPassword: passwordForm.confirmPassword,
-    };
+    try {
+      const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+      if (!token) {
+        navigate("/investor/login", { replace: true });
+        return;
+      }
 
-    const result = await requestWithFallback(
-      [
-        { url: "/api/investor/change-password", method: "POST" },
-        { url: "/api/auth/change-password", method: "POST" },
-        { url: "/api/investor/profile/change-password", method: "POST" },
-      ],
-      [
-        payload,
-        {
-          oldPassword: passwordForm.currentPassword,
-          newPassword: passwordForm.newPassword,
-          confirmPassword: passwordForm.confirmPassword,
+      const res = await fetch("/api/investor/change-password", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
-      ]
-    );
+        body: JSON.stringify({
+          currentPassword,
+          newPassword,
+          confirmPassword,
+          oldPassword: currentPassword,
+        }),
+      });
 
-    setSecurityFeedback(result.message);
-    if (result.ok) {
-      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+      if (res.status === 401) {
+        navigate("/investor/login", { replace: true });
+        return;
+      }
+
+      const data = await res.json().catch(() => ({}));
+      setSecurityFeedback(data?.message || (res.ok ? "Password updated successfully." : "Failed to update password."));
+
+      if (res.ok && data?.success !== false) {
+        setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+        setShowPasswords({ current: false, next: false, confirm: false });
+      }
+    } catch {
+      setSecurityFeedback("Network error while updating password.");
+    } finally {
+      setSavingSecurity(false);
     }
-    setSavingSecurity(false);
+
   };
 
   const memberSince = useMemo(() => {
@@ -487,12 +641,62 @@ export default function InvestorProfile() {
                   </div>
                 </div>
               </div>
-              <Button className="w-full rounded-xl bg-blue-600 text-white hover:bg-blue-700 sm:w-auto">
-                Edit Profile Photo
-              </Button>
+              <div className="w-full space-y-3 sm:w-auto">
+                <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm">
+                  <p className="text-blue-700">Wallet Balance</p>
+                  <p className="text-lg font-semibold text-blue-900">
+                    {formatINR(profile?.wallet?.balance ?? 0)}
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  onClick={() => setAddMoneyOpen(true)}
+                  className="w-full rounded-xl bg-blue-600 text-white hover:bg-blue-700 sm:w-auto"
+                >
+                  Add Money
+                </Button>
+                <Button className="w-full rounded-xl bg-slate-800 text-white hover:bg-slate-900 sm:w-auto">
+                  Edit Profile Photo
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
+
+        <Dialog open={addMoneyOpen} onOpenChange={setAddMoneyOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Add Money to Wallet</DialogTitle>
+              <DialogDescription>
+                Enter an amount to top-up your wallet before investing.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2">
+              <Label htmlFor="addMoneyAmount">Amount (INR)</Label>
+              <Input
+                id="addMoneyAmount"
+                type="number"
+                min={1}
+                value={addMoneyAmount}
+                onChange={(e) => setAddMoneyAmount(e.target.value)}
+                placeholder="e.g. 5000"
+              />
+              {walletFeedback && (
+                <p className={`text-sm ${walletFeedback.toLowerCase().includes("successful") ? "text-emerald-600" : "text-red-600"}`}>
+                  {walletFeedback}
+                </p>
+              )}
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setAddMoneyOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="button" disabled={addingMoney} onClick={handleAddMoney}>
+                {addingMoney ? "Processing..." : "Pay Now"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Profile Tabs */}
         <Tabs defaultValue="personal" className="space-y-6">
@@ -768,32 +972,71 @@ export default function InvestorProfile() {
                 <form className="space-y-6" onSubmit={handlePasswordSave}>
                   <div className="space-y-2">
                     <Label htmlFor="currentPassword">Current Password</Label>
-                    <Input
-                      id="currentPassword"
-                      type="password"
-                      value={passwordForm.currentPassword}
-                      onChange={(e) => setPasswordForm((f) => ({ ...f, currentPassword: e.target.value }))}
-                    />
+                    <div className="relative">
+                      <Input
+                        id="currentPassword"
+                        name="currentPassword"
+                        type={showPasswords.current ? "text" : "password"}
+                        placeholder="Enter current password"
+                        value={passwordForm.currentPassword}
+                        onChange={(e) => setPasswordForm((f) => ({ ...f, currentPassword: e.target.value }))}
+                        className="h-11 rounded-xl border-gray-300 bg-white pr-10 text-gray-900 placeholder:text-gray-400 focus-visible:ring-blue-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPasswords((s) => ({ ...s, current: !s.current }))}
+                        className="absolute inset-y-0 right-0 z-10 flex cursor-pointer items-center px-3 text-gray-500 hover:text-gray-700"
+                        aria-label={showPasswords.current ? "Hide current password" : "Show current password"}
+                      >
+                        {showPasswords.current ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                   </div>
 
                   <div className="grid gap-6 md:grid-cols-2">
                     <div className="space-y-2">
                       <Label htmlFor="newPassword">New Password</Label>
-                      <Input
-                        id="newPassword"
-                        type="password"
-                        value={passwordForm.newPassword}
-                        onChange={(e) => setPasswordForm((f) => ({ ...f, newPassword: e.target.value }))}
-                      />
+                      <div className="relative">
+                        <Input
+                          id="newPassword"
+                          name="newPassword"
+                          type={showPasswords.next ? "text" : "password"}
+                          placeholder="Enter new password"
+                          value={passwordForm.newPassword}
+                          onChange={(e) => setPasswordForm((f) => ({ ...f, newPassword: e.target.value }))}
+                          className="h-11 rounded-xl border-gray-300 bg-white pr-10 text-gray-900 placeholder:text-gray-400 focus-visible:ring-blue-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPasswords((s) => ({ ...s, next: !s.next }))}
+                          className="absolute inset-y-0 right-0 z-10 flex cursor-pointer items-center px-3 text-gray-500 hover:text-gray-700"
+                          aria-label={showPasswords.next ? "Hide new password" : "Show new password"}
+                        >
+                          {showPasswords.next ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                      <Input
-                        id="confirmPassword"
-                        type="password"
-                        value={passwordForm.confirmPassword}
-                        onChange={(e) => setPasswordForm((f) => ({ ...f, confirmPassword: e.target.value }))}
-                      />
+                      <div className="relative">
+                        <Input
+                          id="confirmPassword"
+                          name="confirmPassword"
+                          type={showPasswords.confirm ? "text" : "password"}
+                          placeholder="Confirm new password"
+                          value={passwordForm.confirmPassword}
+                          onChange={(e) => setPasswordForm((f) => ({ ...f, confirmPassword: e.target.value }))}
+                          className="h-11 rounded-xl border-gray-300 bg-white pr-10 text-gray-900 placeholder:text-gray-400 focus-visible:ring-blue-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPasswords((s) => ({ ...s, confirm: !s.confirm }))}
+                          className="absolute inset-y-0 right-0 z-10 flex cursor-pointer items-center px-3 text-gray-500 hover:text-gray-700"
+                          aria-label={showPasswords.confirm ? "Hide confirm password" : "Show confirm password"}
+                        >
+                          {showPasswords.confirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
                     </div>
                   </div>
 
@@ -820,7 +1063,10 @@ export default function InvestorProfile() {
                       type="button"
                       variant="outline"
                       className="w-full border-gray-200 text-gray-700 hover:bg-slate-50 sm:w-auto"
-                      onClick={() => setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" })}
+                      onClick={() => {
+                        setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+                        setShowPasswords({ current: false, next: false, confirm: false });
+                      }}
                     >
                       Cancel
                     </Button>
