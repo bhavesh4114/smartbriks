@@ -1,9 +1,9 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { DashboardLayout } from "../../components/layout/DashboardLayout";
 import { investorMenuItems } from "../../config/menuItems";
 import { StatCard } from "../../components/shared/StatCard";
-import { Wallet, FolderKanban, TrendingUp, TriangleAlert, PiggyBank, Landmark, Percent, BadgeIndianRupee } from "lucide-react";
+import { Wallet, FolderKanban, TrendingUp, Clock, TriangleAlert, PiggyBank } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
@@ -41,13 +41,6 @@ type DashboardData = {
     totalReturns: number;
     pendingPayouts: number;
     walletBalance?: number;
-    profit: number;
-    roi: number;
-    withdrawableAmount: number;
-    hasCompletedProject: boolean;
-    completedProjectStatus?: string | null;
-    completedProjectTitle?: string | null;
-    completionDate?: string | Date | null;
   };
   growth: Array<{ month: string; value: number }>;
   activeInvestments: Array<{ id: number; name: string; invested: number; roi: string; status: string }>;
@@ -60,29 +53,14 @@ type DashboardData = {
     status: "PENDING" | "SUCCESS" | "FAILED";
     createdAt: string | Date;
   }>;
-  withdrawals?: Array<{ id: number; amount: number; status: string; note?: string | null; createdAt: string | Date }>;
 };
 
 const EMPTY_DASHBOARD: DashboardData = {
-  stats: {
-    totalInvested: 0,
-    activeProjects: 0,
-    totalReturns: 0,
-    pendingPayouts: 0,
-    walletBalance: 0,
-    profit: 0,
-    roi: 0,
-    withdrawableAmount: 0,
-    hasCompletedProject: false,
-    completedProjectStatus: null,
-    completedProjectTitle: null,
-    completionDate: null,
-  },
+  stats: { totalInvested: 0, activeProjects: 0, totalReturns: 0, pendingPayouts: 0, walletBalance: 0 },
   growth: [{ month: "No Data", value: 0 }],
   activeInvestments: [],
   notifications: [],
   walletTransactions: [],
-  withdrawals: [],
 };
 
 export default function InvestorDashboard() {
@@ -91,49 +69,6 @@ export default function InvestorDashboard() {
   const [investorName, setInvestorName] = useState<string>(() => getLoggedInInvestorName());
   const [dashboardData, setDashboardData] = useState<DashboardData>(EMPTY_DASHBOARD);
   const [rejectionReason, setRejectionReason] = useState("");
-  const [withdrawMessage, setWithdrawMessage] = useState("");
-  const [withdrawError, setWithdrawError] = useState("");
-  const [withdrawSubmitting, setWithdrawSubmitting] = useState(false);
-
-  const applyDashboardData = useCallback((data: any) => {
-    const fullName = data?.user?.fullName as string | undefined;
-    if (fullName?.trim()) {
-      const firstName = fullName.trim().split(/\s+/)[0];
-      setInvestorName(firstName || fullName.trim());
-    }
-    setDashboardData({
-      stats: {
-        totalInvested: Number(data?.stats?.totalInvested ?? 0),
-        activeProjects: Number(data?.stats?.activeProjects ?? 0),
-        totalReturns: Number(data?.stats?.totalReturns ?? 0),
-        pendingPayouts: Number(data?.stats?.pendingPayouts ?? data?.stats?.withdrawableAmount ?? 0),
-        walletBalance: Number(data?.stats?.walletBalance ?? 0),
-        profit: Number(data?.stats?.profit ?? 0),
-        roi: Number(data?.stats?.roi ?? 0),
-        withdrawableAmount: Number(data?.stats?.withdrawableAmount ?? data?.stats?.pendingPayouts ?? 0),
-        hasCompletedProject: Boolean(data?.stats?.hasCompletedProject),
-        completedProjectStatus: data?.stats?.completedProjectStatus ?? null,
-        completedProjectTitle: data?.stats?.completedProjectTitle ?? null,
-        completionDate: data?.stats?.completionDate ?? null,
-      },
-      growth:
-        Array.isArray(data?.growth) && data.growth.length
-          ? data.growth
-          : [{ month: "No Data", value: 0 }],
-      activeInvestments: Array.isArray(data?.activeInvestments) ? data.activeInvestments : [],
-      notifications: Array.isArray(data?.notifications) ? data.notifications : [],
-      walletTransactions: Array.isArray(data?.walletTransactions) ? data.walletTransactions : [],
-      withdrawals: Array.isArray(data?.withdrawals) ? data.withdrawals : [],
-    });
-  }, []);
-
-  const loadDashboard = useCallback(async (token: string) => {
-    const dashboardRes = await fetch("/api/investor/dashboard", { headers: { Authorization: `Bearer ${token}` } });
-    const d = await dashboardRes.json().catch(() => ({}));
-    if (dashboardRes.ok && d?.success && d?.data) {
-      applyDashboardData(d.data);
-    }
-  }, [applyDashboardData]);
 
   useEffect(() => {
     const syncKycStatus = () => setKycStatus(getKycStatus());
@@ -143,8 +78,11 @@ export default function InvestorDashboard() {
 
     const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
     if (token) {
-      fetch("/api/investor/kyc/status", { headers: { Authorization: `Bearer ${token}` } })
-        .then(async (kycRes) => {
+      Promise.all([
+        fetch("/api/investor/kyc/status", { headers: { Authorization: `Bearer ${token}` } }),
+        fetch("/api/investor/dashboard", { headers: { Authorization: `Bearer ${token}` } }),
+      ])
+        .then(async ([kycRes, dashboardRes]) => {
           const kycData = await kycRes.json().catch(() => ({}));
           if (kycData?.success && kycData.kycStatus) {
             const raw = kycData.kycStatus;
@@ -160,9 +98,33 @@ export default function InvestorDashboard() {
             setKycStatus(mapped);
             setRejectionReason(mapped === "rejected" ? String(kycData?.rejectionReason || "").trim() : "");
           }
+
+          const d = await dashboardRes.json().catch(() => ({}));
+          if (dashboardRes.ok && d?.success && d?.data) {
+            const fullName = d.data?.user?.fullName as string | undefined;
+            if (fullName?.trim()) {
+              const firstName = fullName.trim().split(/\s+/)[0];
+              setInvestorName(firstName || fullName.trim());
+            }
+            setDashboardData({
+              stats: {
+                totalInvested: Number(d.data?.stats?.totalInvested ?? 0),
+                activeProjects: Number(d.data?.stats?.activeProjects ?? 0),
+                totalReturns: Number(d.data?.stats?.totalReturns ?? 0),
+                pendingPayouts: Number(d.data?.stats?.pendingPayouts ?? 0),
+                walletBalance: Number(d.data?.stats?.walletBalance ?? d.data?.stats?.totalReturns ?? 0),
+              },
+              growth:
+                Array.isArray(d.data?.growth) && d.data.growth.length
+                  ? d.data.growth
+                  : [{ month: "No Data", value: 0 }],
+              activeInvestments: Array.isArray(d.data?.activeInvestments) ? d.data.activeInvestments : [],
+              notifications: Array.isArray(d.data?.notifications) ? d.data.notifications : [],
+              walletTransactions: Array.isArray(d.data?.walletTransactions) ? d.data.walletTransactions : [],
+            });
+          }
         })
         .catch(() => {});
-      loadDashboard(token).catch(() => {});
     }
 
     window.addEventListener("focus", syncKycStatus);
@@ -176,51 +138,10 @@ export default function InvestorDashboard() {
       window.removeEventListener("focus", syncInvestorName);
       window.removeEventListener("storage", syncInvestorName);
     };
-  }, [loadDashboard]);
+  }, []);
 
   const isKycApproved = kycStatus === "approved";
   const isSensitiveLocked = !isKycApproved;
-  const completionDate = dashboardData.stats.completionDate
-    ? new Date(dashboardData.stats.completionDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
-    : null;
-
-  const handleWithdraw = async () => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
-    if (!token) {
-      navigate("/login");
-      return;
-    }
-    const amount = dashboardData.stats.withdrawableAmount;
-    if (amount <= 0) {
-      setWithdrawError("No profit is currently available to withdraw.");
-      setWithdrawMessage("");
-      return;
-    }
-    setWithdrawSubmitting(true);
-    setWithdrawError("");
-    setWithdrawMessage("");
-    try {
-      const res = await fetch("/api/investor/withdrawals", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ amount }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data?.success) {
-        setWithdrawError(data?.message || "Failed to submit withdrawal request.");
-        return;
-      }
-      setWithdrawMessage("Withdrawal request submitted successfully.");
-      await loadDashboard(token);
-    } catch {
-      setWithdrawError("Network error while submitting withdrawal request.");
-    } finally {
-      setWithdrawSubmitting(false);
-    }
-  };
 
   return (
     <DashboardLayout
@@ -259,19 +180,7 @@ export default function InvestorDashboard() {
           <p className="mt-1 text-[#6B7280]">Here's your investment overview</p>
         </div>
 
-        {dashboardData.stats.hasCompletedProject && (
-          <Alert className="border-emerald-200 bg-emerald-50 text-emerald-900">
-            <TrendingUp className="h-4 w-4" aria-hidden />
-            <AlertTitle>{dashboardData.stats.completedProjectStatus || "Project Completed"}</AlertTitle>
-            <AlertDescription className="text-emerald-800">
-              Your project has been completed and returns are available.
-              {dashboardData.stats.completedProjectTitle ? ` Project: ${dashboardData.stats.completedProjectTitle}.` : ""}
-              {completionDate ? ` Completion date: ${completionDate}.` : ""}
-            </AlertDescription>
-          </Alert>
-        )}
-
-        <div className="grid min-w-0 grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid min-w-0 grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-5">
           <StatCard
             title="Total Invested"
             value={formatINR(dashboardData.stats.totalInvested)}
@@ -297,19 +206,11 @@ export default function InvestorDashboard() {
             className="bg-white border border-[#E5E7EB] rounded-2xl shadow-sm transition-shadow duration-200 lg:hover:shadow-md"
           />
           <StatCard
-            title="Profit"
-            value={isSensitiveLocked ? "Locked until KYC approval" : formatINR(dashboardData.stats.profit)}
-            icon={BadgeIndianRupee}
-            iconBg="bg-emerald-50"
-            iconTextColor="text-emerald-600"
-            className="bg-white border border-[#E5E7EB] rounded-2xl shadow-sm transition-shadow duration-200 lg:hover:shadow-md"
-          />
-          <StatCard
-            title="ROI %"
-            value={isSensitiveLocked ? "Locked until KYC approval" : `${dashboardData.stats.roi.toFixed(2)}%`}
-            icon={Percent}
-            iconBg="bg-cyan-50"
-            iconTextColor="text-cyan-600"
+            title="Pending Payouts"
+            value={isSensitiveLocked ? "Locked until KYC approval" : formatINR(dashboardData.stats.pendingPayouts)}
+            icon={Clock}
+            iconBg="bg-amber-50"
+            iconTextColor="text-amber-600"
             className="bg-white border border-[#E5E7EB] rounded-2xl shadow-sm transition-shadow duration-200 lg:hover:shadow-md"
           />
           <StatCard
@@ -320,31 +221,6 @@ export default function InvestorDashboard() {
             iconTextColor="text-violet-600"
             className="bg-white border border-[#E5E7EB] rounded-2xl shadow-sm transition-shadow duration-200 lg:hover:shadow-md"
           />
-          <Card className="bg-white border border-[#E5E7EB] rounded-2xl shadow-sm transition-shadow duration-200 lg:hover:shadow-md">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-[#6B7280]">Available to Withdraw</p>
-                  <p className="mt-2 text-3xl font-semibold text-[#111827]">
-                    {isSensitiveLocked ? "Locked" : formatINR(dashboardData.stats.withdrawableAmount)}
-                  </p>
-                </div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-amber-50">
-                  <Landmark className="h-6 w-6 text-amber-600" />
-                </div>
-              </div>
-              <Button
-                type="button"
-                disabled={isSensitiveLocked || withdrawSubmitting || dashboardData.stats.withdrawableAmount <= 0}
-                onClick={handleWithdraw}
-                className="mt-5 w-full rounded-xl bg-[#2563EB] font-semibold text-white hover:bg-[#1D4ED8]"
-              >
-                {withdrawSubmitting ? "Submitting..." : "Withdraw Now"}
-              </Button>
-              {withdrawMessage && <p className="mt-3 text-sm font-medium text-emerald-700">{withdrawMessage}</p>}
-              {withdrawError && <p className="mt-3 text-sm font-medium text-red-700">{withdrawError}</p>}
-            </CardContent>
-          </Card>
         </div>
 
         <Card className="bg-white border border-[#E5E7EB] rounded-2xl shadow-sm transition-shadow duration-200 lg:hover:shadow-md min-h-0">

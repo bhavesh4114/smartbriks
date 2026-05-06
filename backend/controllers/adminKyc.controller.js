@@ -21,54 +21,18 @@ export async function listPendingInvestorKyc(req, res) {
       },
       orderBy: { createdAt: 'desc' },
     });
-
-    const grouped = new Map();
-
-    for (const k of list) {
-      const groupKey = k.builderId ? `builder:${k.builderId}` : `investor:${k.userId}`;
-      const document = {
+    res.json({
+      success: true,
+      data: list.map((k) => ({
         id: k.id,
         documentType: k.documentType,
         documentNumber: k.documentNumber,
         documentImage: k.documentImage,
         status: k.status,
         createdAt: k.createdAt,
-      };
-      const existing = grouped.get(groupKey);
-
-      if (!existing) {
-        grouped.set(groupKey, {
-          id: k.id,
-          documentType: k.documentType,
-          documentNumber: k.documentNumber,
-          documentImage: k.documentImage,
-          status: k.status,
-          createdAt: k.createdAt,
-          user: k.user,
-          builder: k.builder,
-          documents: [document],
-        });
-        continue;
-      }
-
-      existing.documents.push(document);
-      if (new Date(k.createdAt).getTime() > new Date(existing.createdAt).getTime()) {
-        existing.id = k.id;
-        existing.documentType = k.documentType;
-        existing.documentNumber = k.documentNumber;
-        existing.documentImage = k.documentImage;
-        existing.status = k.status;
-        existing.createdAt = k.createdAt;
-      }
-    }
-
-    const data = Array.from(grouped.values()).sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
-
-    res.json({
-      success: true,
-      data,
+        user: k.user,
+        builder: k.builder,
+      })),
     });
   } catch (err) {
     console.error('listPendingInvestorKyc:', err);

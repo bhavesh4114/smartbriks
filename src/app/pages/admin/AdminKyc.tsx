@@ -13,14 +13,6 @@ type PendingKyc = {
   documentImage: string | null;
   status: string;
   createdAt: string;
-  documents?: Array<{
-    id: number;
-    documentType: string;
-    documentNumber: string;
-    documentImage: string | null;
-    status: string;
-    createdAt: string;
-  }>;
   user?: {
     id: number;
     fullName: string;
@@ -47,10 +39,11 @@ export default function AdminKyc() {
   const [rejectReason, setRejectReason] = useState("");
   const [rejectError, setRejectError] = useState("");
 
+  const getSubjectKey = (item: PendingKyc) =>
+    item.builder ? `builder:${item.builder.id}` : `investor:${item.user?.id ?? item.id}`;
+
   const getDocumentUrl = (docImage: string | null) =>
     docImage ? `/api/uploads/${docImage.replace(/^\/+/, "")}` : null;
-
-  const getDocsForItem = (item: PendingKyc) => (item.documents?.length ? item.documents : [item]);
 
   const fetchPending = () => {
     const token = localStorage.getItem("token");
@@ -155,12 +148,7 @@ export default function AdminKyc() {
                   const subjectType = isBuilder ? "Builder" : "Investor";
                   const subjectEmail = isBuilder ? item.builder?.email ?? "" : item.user?.email ?? "";
                   const subjectMobile = isBuilder ? item.builder?.mobileNumber ?? "" : item.user?.mobileNumber ?? "";
-                  const docs = getDocsForItem(item);
-                  const hasImage = docs.some((doc) => Boolean(doc.documentImage));
-                  const submittedLabel =
-                    docs.length === 1
-                      ? `${docs[0].documentType} - ${docs[0].documentNumber}`
-                      : `${docs.length} documents uploaded`;
+                  const imageUrl = getDocumentUrl(item.documentImage);
 
                   return (
                     <div
@@ -173,12 +161,16 @@ export default function AdminKyc() {
                         <p className="text-sm text-[#6B7280]">{subjectEmail}</p>
                         <p className="text-sm text-[#6B7280]">{subjectMobile}</p>
                         <p className="mt-1 text-xs text-[#6B7280]">
-                          Document: {submittedLabel} - Submitted {new Date(item.createdAt).toLocaleDateString()}
+                          Document: {item.documentType} • {item.documentNumber} • Submitted {new Date(item.createdAt).toLocaleDateString()}
                         </p>
-                        {hasImage && (
+                        {imageUrl && (
                           <button
                             type="button"
-                            onClick={() => setViewerDocs(docs)}
+                            onClick={() => {
+                              const subjectKey = getSubjectKey(item);
+                              const docs = list.filter((entry) => getSubjectKey(entry) === subjectKey);
+                              setViewerDocs(docs);
+                            }}
                             className="mt-1 inline-block text-xs text-[#2563EB] hover:underline"
                           >
                             View uploaded document
@@ -309,4 +301,3 @@ export default function AdminKyc() {
     </DashboardLayout>
   );
 }
-

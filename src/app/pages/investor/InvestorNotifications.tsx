@@ -1,130 +1,113 @@
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router";
 import { DashboardLayout } from "../../components/layout/DashboardLayout";
 import { investorMenuItems } from "../../config/menuItems";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
-import {
-  ArrowDownToLine,
-  ArrowUpRight,
-  CheckCircle,
-  CreditCard,
-  Landmark,
-  TriangleAlert,
-  WalletCards,
-} from "lucide-react";
-import { formatINR } from "../../utils/currency";
+import { Bell, DollarSign, AlertCircle, CheckCircle, Info, Trash2 } from "lucide-react";
 
-type NotificationType = "success" | "warning" | "info" | string;
-type FilterKey = "all" | "payment" | "wallet" | "withdrawal" | "returns";
-
-type InvestorNotification = {
-  id: string;
-  type: NotificationType;
-  title: string;
-  message: string;
-  time: string;
-  read: boolean;
-  status?: string;
-  amount?: number;
-  channel?: string;
-};
-
-function getNotificationIcon(notification: InvestorNotification) {
-  const text = `${notification.title} ${notification.channel}`.toLowerCase();
-  if (text.includes("withdraw")) return Landmark;
-  if (text.includes("razorpay") || text.includes("payment")) return CreditCard;
-  if (text.includes("wallet")) return WalletCards;
-  if (text.includes("payout") || text.includes("return")) return ArrowDownToLine;
-  if (notification.type === "warning") return TriangleAlert;
-  return CheckCircle;
-}
-
-function getFilterKey(notification: InvestorNotification): Exclude<FilterKey, "all"> {
-  const text = `${notification.title} ${notification.message} ${notification.channel}`.toLowerCase();
-  if (text.includes("withdraw")) return "withdrawal";
-  if (text.includes("razorpay") || text.includes("payment")) return "payment";
-  if (text.includes("payout") || text.includes("return")) return "returns";
-  return "wallet";
-}
-
-function getAccentClasses(type: NotificationType) {
-  if (type === "success") return "border-emerald-200 bg-emerald-50 text-emerald-700";
-  if (type === "warning") return "border-amber-200 bg-amber-50 text-amber-700";
-  return "border-blue-200 bg-blue-50 text-blue-700";
-}
-
-function normalizeAmount(value: unknown) {
-  const amount = Number(value ?? 0);
-  return Number.isFinite(amount) && amount > 0 ? amount : null;
-}
+const notifications = [
+  {
+    id: 1,
+    type: "success",
+    icon: CheckCircle,
+    title: "Payout Received",
+    message: "₹477 has been credited to your account for January 2026 returns",
+    time: "2 hours ago",
+    read: false,
+  },
+  {
+    id: 2,
+    type: "info",
+    icon: Info,
+    title: "New Project Available",
+    message: "Luxury Beachfront Condos in Miami is now open for investment. Expected ROI: 20%",
+    time: "5 hours ago",
+    read: false,
+  },
+  {
+    id: 3,
+    type: "warning",
+    icon: AlertCircle,
+    title: "Project Update Required",
+    message: "Green Valley Villas construction has reached 60% completion. View progress report.",
+    time: "1 day ago",
+    read: false,
+  },
+  {
+    id: 4,
+    type: "success",
+    icon: DollarSign,
+    title: "Investment Confirmed",
+    message: "Your investment of ₹5,000 in Commercial Plaza has been confirmed",
+    time: "2 days ago",
+    read: true,
+  },
+  {
+    id: 5,
+    type: "info",
+    icon: Info,
+    title: "Document Uploaded",
+    message: "Investment agreement for Luxury Apartments is now available for download",
+    time: "3 days ago",
+    read: true,
+  },
+  {
+    id: 6,
+    type: "warning",
+    icon: AlertCircle,
+    title: "KYC Verification Expiring",
+    message: "Your KYC verification will expire in 30 days. Please renew your documents",
+    time: "4 days ago",
+    read: true,
+  },
+  {
+    id: 7,
+    type: "success",
+    icon: CheckCircle,
+    title: "Monthly Report Generated",
+    message: "Your investment summary for January 2026 is ready to download",
+    time: "5 days ago",
+    read: true,
+  },
+  {
+    id: 8,
+    type: "info",
+    icon: Info,
+    title: "Platform Update",
+    message: "New features have been added to the investor dashboard. Check them out!",
+    time: "1 week ago",
+    read: true,
+  },
+];
 
 export default function InvestorNotifications() {
-  const navigate = useNavigate();
-  const [notifications, setNotifications] = useState<InvestorNotification[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [activeFilter, setActiveFilter] = useState<FilterKey>("all");
+  const unreadCount = notifications.filter((n) => !n.read).length;
 
-  useEffect(() => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
-    if (!token) {
-      navigate("/investor/login", { replace: true });
-      return;
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case "success":
+        return "text-green-600 bg-emerald-50";
+      case "warning":
+        return "text-amber-600 bg-amber-50";
+      case "info":
+        return "text-blue-600 bg-blue-50";
+      default:
+        return "text-gray-600 bg-gray-100";
     }
+  };
 
-    const fetchNotifications = async () => {
-      setLoading(true);
-      setError("");
-
-      try {
-        const res = await fetch("/api/investor/notifications", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await res.json().catch(() => ({}));
-
-        if (res.status === 401) {
-          navigate("/investor/login", { replace: true });
-          return;
-        }
-        if (!res.ok || !data?.success) {
-          setError(data?.message || "Failed to load notifications.");
-          setNotifications([]);
-          return;
-        }
-
-        setNotifications(Array.isArray(data?.data) ? data.data : []);
-      } catch {
-        setError("Network error while loading notifications.");
-        setNotifications([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchNotifications();
-  }, [navigate]);
-
-  const counts = useMemo(() => {
-    const payment = notifications.filter((n) => getFilterKey(n) === "payment").length;
-    const withdrawal = notifications.filter((n) => getFilterKey(n) === "withdrawal").length;
-    const wallet = notifications.filter((n) => getFilterKey(n) === "wallet").length;
-    return { payment, withdrawal, wallet, total: notifications.length };
-  }, [notifications]);
-
-  const filteredNotifications = useMemo(() => {
-    if (activeFilter === "all") return notifications;
-    return notifications.filter((notification) => getFilterKey(notification) === activeFilter);
-  }, [activeFilter, notifications]);
-
-  const filters: Array<{ key: FilterKey; label: string; count: number }> = [
-    { key: "all", label: "All", count: counts.total },
-    { key: "payment", label: "Razorpay", count: counts.payment },
-    { key: "wallet", label: "Wallet", count: counts.wallet },
-    { key: "withdrawal", label: "Withdrawals", count: counts.withdrawal },
-    { key: "returns", label: "Returns", count: notifications.filter((n) => getFilterKey(n) === "returns").length },
-  ];
+  const getBadgeColor = (type: string) => {
+    switch (type) {
+      case "success":
+        return "bg-emerald-50 text-green-600 border-0";
+      case "warning":
+        return "bg-amber-50 text-amber-600 border-0";
+      case "info":
+        return "bg-blue-50 text-blue-600 border-0";
+      default:
+        return "bg-gray-100 text-gray-600 border-0";
+    }
+  };
 
   return (
     <DashboardLayout
@@ -133,97 +116,148 @@ export default function InvestorNotifications() {
       userRole="Investor"
       logoText="RealEstate"
     >
-      <div className="min-w-0 space-y-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium uppercase tracking-[0.08em] text-blue-600">Transaction alerts</p>
-            <h1 className="mt-1 text-3xl font-semibold text-gray-950">Notifications</h1>
-            <p className="mt-1 text-gray-500">
-              Razorpay payments, wallet activity, payouts, and bank withdrawal updates in one place.
+            <h1 className="text-3xl font-semibold text-gray-900">Notifications</h1>
+            <p className="text-gray-500">
+              {unreadCount} unread notification{unreadCount !== 1 ? "s" : ""}
             </p>
-            {error && <p className="mt-2 text-sm font-medium text-red-600">{error}</p>}
           </div>
-          <Button
-            variant="outline"
-            className="w-full border-gray-200 bg-white text-gray-700 hover:bg-slate-50 sm:w-auto"
-            onClick={() => setNotifications((items) => items.map((item) => ({ ...item, read: true })))}
-          >
+          <Button variant="outline" className="border-gray-200 text-gray-700 hover:bg-slate-50">
             <CheckCircle className="mr-2 h-4 w-4" />
             Mark all as read
           </Button>
         </div>
 
-        <Card className="rounded-xl border-gray-200 bg-white shadow-sm">
-          <CardHeader className="gap-4 pb-4">
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <CardTitle className="text-gray-950">All Notifications</CardTitle>
-              <div className="flex flex-wrap gap-2">
-                {filters.map((filter) => (
-                  <Button
-                    key={filter.key}
-                    type="button"
-                    variant={activeFilter === filter.key ? "default" : "outline"}
-                    size="sm"
-                    className={activeFilter === filter.key ? "bg-blue-600 text-white hover:bg-blue-700" : "border-gray-200 bg-white text-gray-700 hover:bg-slate-50"}
-                    onClick={() => setActiveFilter(filter.key)}
-                  >
-                    {filter.label}
-                    <span className="ml-2 rounded-full bg-white/20 px-2 text-xs">{filter.count}</span>
-                  </Button>
-                ))}
+        {/* Notification Stats */}
+        <div className="grid gap-6 md:grid-cols-4">
+          <Card className="bg-white border-gray-200 rounded-2xl shadow-sm">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-500">Total</p>
+                  <p className="mt-2 text-3xl font-semibold text-gray-900">{notifications.length}</p>
+                </div>
+                <Bell className="h-8 w-8 text-gray-400" />
               </div>
-            </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-white border-gray-200 rounded-2xl shadow-sm">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-500">Unread</p>
+                  <p className="mt-2 text-3xl font-semibold text-blue-600">{unreadCount}</p>
+                </div>
+                <Bell className="h-8 w-8 text-blue-600" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-white border-gray-200 rounded-2xl shadow-sm">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-500">Important</p>
+                  <p className="mt-2 text-3xl font-semibold text-amber-600">
+                    {notifications.filter((n) => n.type === "warning").length}
+                  </p>
+                </div>
+                <AlertCircle className="h-8 w-8 text-amber-600" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-white border-gray-200 rounded-2xl shadow-sm">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-500">Updates</p>
+                  <p className="mt-2 text-3xl font-semibold text-green-600">
+                    {notifications.filter((n) => n.type === "success").length}
+                  </p>
+                </div>
+                <CheckCircle className="h-8 w-8 text-green-600" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Notifications List */}
+        <Card className="bg-white border-gray-200 rounded-2xl shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-gray-900">All Notifications</CardTitle>
           </CardHeader>
           <CardContent>
-            {loading && (
-              <div className="rounded-lg border border-gray-200 p-8 text-center text-gray-500">
-                Loading notifications...
-              </div>
-            )}
-
-            {!loading && filteredNotifications.length === 0 && (
-              <div className="rounded-lg border border-gray-200 p-8 text-center text-gray-500">
-                No notifications found.
-              </div>
-            )}
-
-            {!loading && filteredNotifications.length > 0 && (
-              <div className="space-y-3">
-                {filteredNotifications.map((notification) => {
-                  const Icon = getNotificationIcon(notification);
-                  const amount = normalizeAmount(notification.amount);
-                  return (
+            <div className="space-y-3">
+              {notifications.map((notification) => {
+                const Icon = notification.icon;
+                return (
+                  <div
+                    key={notification.id}
+                    className={`flex items-start gap-4 rounded-xl border border-gray-200 p-4 transition-colors hover:bg-slate-50 ${
+                      !notification.read ? "border-l-4 border-l-blue-600 bg-blue-50/50" : ""
+                    }`}
+                  >
                     <div
-                      key={notification.id}
-                      className={`grid gap-4 rounded-lg border p-4 transition-colors hover:bg-slate-50 sm:grid-cols-[auto_1fr_auto] ${
-                        notification.read ? "border-gray-200 bg-white" : "border-blue-200 bg-blue-50/40"
-                      }`}
+                      className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ${getTypeColor(
+                        notification.type
+                      )}`}
                     >
-                      <div className={`flex h-11 w-11 items-center justify-center rounded-lg border ${getAccentClasses(notification.type)}`}>
-                        <Icon className="h-5 w-5" />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="font-semibold text-gray-950">{notification.title}</p>
-                          {!notification.read && <Badge className="border-0 bg-blue-100 text-blue-700">New</Badge>}
-                          {notification.channel && <Badge variant="outline" className="border-gray-200 text-gray-600">{notification.channel}</Badge>}
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-gray-900">{notification.title}</p>
+                            {!notification.read && (
+                              <Badge className="bg-blue-50 text-blue-600 text-xs border-0">New</Badge>
+                            )}
+                          </div>
+                          <p className="mt-1 text-sm text-gray-500">{notification.message}</p>
+                          <p className="mt-2 text-xs text-gray-400">{notification.time}</p>
                         </div>
-                        <p className="mt-1 text-sm leading-6 text-gray-600">{notification.message}</p>
-                        <p className="mt-2 text-xs font-medium text-gray-400">{notification.time}</p>
-                      </div>
-                      <div className="flex items-center justify-between gap-3 sm:block sm:text-right">
-                        {amount ? <p className="font-semibold text-gray-950">{formatINR(amount)}</p> : <ArrowUpRight className="h-4 w-4 text-gray-400" />}
-                        {notification.status && (
-                          <Badge className={`mt-0 border-0 sm:mt-2 ${notification.type === "warning" ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"}`}>
-                            {notification.status}
-                          </Badge>
-                        )}
+                        <Button variant="ghost" size="sm" className="flex-shrink-0 text-gray-500 hover:text-gray-900">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            )}
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Notification Preferences */}
+        <Card className="bg-white border-gray-200 rounded-2xl shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-gray-900">Notification Preferences</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {[
+                { label: "Project Updates", description: "Get notified about project progress" },
+                { label: "Payment Alerts", description: "Receive alerts for payouts and transactions" },
+                { label: "New Opportunities", description: "Be the first to know about new projects" },
+                { label: "Account Activity", description: "Security and account-related notifications" },
+              ].map((pref, index) => (
+                <div
+                  key={index}
+                  className="flex items-center justify-between border-b border-gray-200 pb-4 last:border-0 last:pb-0"
+                >
+                  <div>
+                    <p className="font-medium text-gray-900">{pref.label}</p>
+                    <p className="text-sm text-gray-500">{pref.description}</p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <Button variant="outline" size="sm" className="border-gray-200 text-gray-700 hover:bg-slate-50">
+                      Configure
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
       </div>

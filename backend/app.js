@@ -12,9 +12,6 @@ import returnRoutes from './routes/return.routes.js';
 import kycRoutes from './routes/kyc.routes.js';
 import investorKycRoutes from './routes/investorKyc.routes.js';
 import adminRoutes from './routes/admin.routes.js';
-import { authenticate } from './middleware/auth.middleware.js';
-import { builderOnly } from './middleware/role.middleware.js';
-import { updateProjectTimeline } from './controllers/builderTimeline.controller.js';
 
 const app = express();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -44,8 +41,6 @@ app.use('/api/investor', investorKycRoutes);
 app.use('/investor', investorKycRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/admin', adminRoutes);
-app.post('/api/update-timeline', authenticate, builderOnly, updateProjectTimeline);
-app.post('/update-timeline', authenticate, builderOnly, updateProjectTimeline);
 
 // 404
 app.use((req, res) => {

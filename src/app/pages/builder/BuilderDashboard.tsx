@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { BuilderLayout } from "../../components/layout/BuilderLayout";
 import { StatCard } from "../../components/shared/StatCard";
-import { FolderKanban, Users, DollarSign, TrendingUp, TriangleAlert, Wallet, HandCoins, Landmark } from "lucide-react";
+import { FolderKanban, Users, DollarSign, TrendingUp, TriangleAlert, Wallet } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
@@ -34,10 +34,6 @@ type BuilderDashboardData = {
     total_projects: number;
     total_investors: number;
     funds_raised: number | string;
-    totalFundsRaised?: number | string;
-    totalPayoutGiven?: number | string;
-    remainingBalance?: number | string;
-    wallet_balance?: number | string;
     active_projects: number;
   };
   project_status: { name: string; value: number }[];
@@ -258,7 +254,7 @@ export default function BuilderDashboard() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid min-w-0 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid min-w-0 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-5">
           <StatCard
             title="Total Projects"
             value={dashboardLoading ? "Loading..." : stats?.total_projects?.toString() ?? "--"}
@@ -283,46 +279,18 @@ export default function BuilderDashboard() {
             className="bg-white border border-[#E5E7EB] rounded-2xl shadow-sm"
           />
           <StatCard
-            title="Total Funds Raised"
+            title="Funds Raised"
             value={
               isBuilderRestricted
                 ? "Locked until KYC approval"
                 : dashboardLoading
                 ? "Loading..."
-                : formatINR(Number(stats?.totalFundsRaised ?? stats?.funds_raised ?? 0))
+                : formatINR(Number(stats?.funds_raised ?? 0))
             }
             icon={DollarSign}
             iconBg="bg-orange-50"
             iconTextColor="text-orange-600"
             trend={isBuilderRestricted ? undefined : { value: "+18%", isPositive: true }}
-            className="bg-white border border-[#E5E7EB] rounded-2xl shadow-sm"
-          />
-          <StatCard
-            title="Total Paid to Investors"
-            value={
-              isBuilderRestricted
-                ? "Locked until KYC approval"
-                : dashboardLoading
-                ? "Loading..."
-                : formatINR(Number(stats?.totalPayoutGiven ?? 0))
-            }
-            icon={HandCoins}
-            iconBg="bg-rose-50"
-            iconTextColor="text-rose-600"
-            className="bg-white border border-[#E5E7EB] rounded-2xl shadow-sm"
-          />
-          <StatCard
-            title="Remaining Balance"
-            value={
-              isBuilderRestricted
-                ? "Locked until KYC approval"
-                : dashboardLoading
-                ? "Loading..."
-                : formatINR(Number(stats?.remainingBalance ?? 0))
-            }
-            icon={Landmark}
-            iconBg="bg-emerald-50"
-            iconTextColor="text-emerald-700"
             className="bg-white border border-[#E5E7EB] rounded-2xl shadow-sm"
           />
           <StatCard
@@ -340,7 +308,7 @@ export default function BuilderDashboard() {
                 ? "Locked until KYC approval"
                 : dashboardLoading
                 ? "Loading..."
-                : formatINR(Number(stats?.wallet_balance ?? 0))
+                : formatINR(Number(stats?.funds_raised ?? 0))
             }
             icon={Wallet}
             iconBg="bg-slate-100"
@@ -502,4 +470,6 @@ export default function BuilderDashboard() {
     </BuilderLayout>
   );
 }
+
+
 

@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/ca
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
 import { Progress } from "../../components/ui/progress";
-import { MapPin, Clock, TrendingUp, Building2, IndianRupee, Sparkles } from "lucide-react";
+import { MapPin, Clock, TrendingUp, Building2, IndianRupee } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { isKycApproved } from "../../config/kyc";
@@ -442,19 +442,11 @@ export default function ProjectDetails() {
                 <CardTitle className="text-gray-900">Amenities</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
                   {(projectDetails.amenities.length ? projectDetails.amenities : ["Not specified"]).map((amenity, index) => (
-                    <div
-                      key={index}
-                      className="flex min-h-[76px] items-start gap-3 rounded-2xl border border-slate-200 bg-[linear-gradient(180deg,#f8fafc_0%,#ffffff_100%)] p-4 shadow-sm"
-                    >
-                      <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
-                        <Sparkles className="h-4 w-4" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-gray-900 leading-5">{amenity}</p>
-                        <p className="mt-1 text-xs text-gray-500">Included with this project</p>
-                      </div>
+                    <div key={index} className="flex items-center gap-2 rounded-xl bg-slate-50 p-3">
+                      <div className="h-2 w-2 rounded-full bg-green-600" />
+                      <span className="text-sm text-gray-700">{amenity}</span>
                     </div>
                   ))}
                 </div>

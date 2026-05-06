@@ -70,12 +70,7 @@ export async function approveProject(req, res) {
       return res.status(400).json({ success: false, message: 'Invalid project id.' });
     }
 
-    const project = await prisma.project.findUnique({
-      where: { id },
-      include: {
-        investments: { select: { investedAmount: true } },
-      },
-    });
+    const project = await prisma.project.findUnique({ where: { id } });
     if (!project) {
       return res.status(404).json({ success: false, message: 'Project not found.' });
     }
@@ -83,57 +78,16 @@ export async function approveProject(req, res) {
       return res.status(400).json({ success: false, message: 'Only pending projects can be approved.' });
     }
 
-    const raised = project.investments.reduce(
-      (sum, inv) => sum + toNum(inv.investedAmount?.toString?.() ?? inv.investedAmount),
-      0
-    );
-    const totalValue = toNum(project.totalValue?.toString?.() ?? project.totalValue);
-    const isFundingApproval = raised > 0 && raised >= totalValue;
-
-    await prisma.$transaction(async (tx) => {
-      await tx.project.update({
-        where: { id },
-        data: {
-          projectStatus: isFundingApproval ? 'FUNDED' : 'APPROVED',
-          approvedAt: new Date(),
-          rejectionReason: null,
-        },
-      });
-
-      if (isFundingApproval) {
-        const pendingRelease = await tx.payment.findFirst({
-          where: {
-            projectId: id,
-            builderId: project.builderId,
-            userId: null,
-            paymentMethod: 'ADMIN_RELEASE',
-            paymentStatus: 'PENDING',
-          },
-          orderBy: { createdAt: 'desc' },
-        });
-
-        if (pendingRelease) {
-          await tx.payment.update({
-            where: { id: pendingRelease.id },
-            data: {
-              paymentStatus: 'SUCCESS',
-              gatewayResponse: {
-                ...(pendingRelease.gatewayResponse || {}),
-                approved_at: new Date().toISOString(),
-                approved_by_role: 'ADMIN',
-              },
-            },
-          });
-        }
-      }
+    await prisma.project.update({
+      where: { id },
+      data: {
+        projectStatus: 'APPROVED',
+        approvedAt: new Date(),
+        rejectionReason: null,
+      },
     });
 
-    return res.json({
-      success: true,
-      message: isFundingApproval
-        ? 'Project approved and funds released to builder wallet.'
-        : 'Project approved.',
-    });
+    return res.json({ success: true, message: 'Project approved.' });
   } catch (err) {
     console.error('approveProject:', err);
     return res.status(500).json({ success: false, message: 'Failed to approve project.' });
@@ -155,12 +109,7 @@ export async function rejectProject(req, res) {
       return res.status(400).json({ success: false, message: 'Rejection reason is required.' });
     }
 
-    const project = await prisma.project.findUnique({
-      where: { id },
-      include: {
-        investments: { select: { investedAmount: true } },
-      },
-    });
+    const project = await prisma.project.findUnique({ where: { id } });
     if (!project) {
       return res.status(404).json({ success: false, message: 'Project not found.' });
     }
@@ -168,37 +117,13 @@ export async function rejectProject(req, res) {
       return res.status(400).json({ success: false, message: 'Only pending projects can be rejected.' });
     }
 
-    const raised = project.investments.reduce(
-      (sum, inv) => sum + toNum(inv.investedAmount?.toString?.() ?? inv.investedAmount),
-      0
-    );
-    const totalValue = toNum(project.totalValue?.toString?.() ?? project.totalValue);
-    const isFundingApproval = raised > 0 && raised >= totalValue;
-
-    await prisma.$transaction(async (tx) => {
-      await tx.project.update({
-        where: { id },
-        data: {
-          projectStatus: 'REJECTED',
-          approvedAt: null,
-          rejectionReason: reason,
-        },
-      });
-
-      if (isFundingApproval) {
-        await tx.payment.updateMany({
-          where: {
-            projectId: id,
-            builderId: project.builderId,
-            userId: null,
-            paymentMethod: 'ADMIN_RELEASE',
-            paymentStatus: 'PENDING',
-          },
-          data: {
-            paymentStatus: 'FAILED',
-          },
-        });
-      }
+    await prisma.project.update({
+      where: { id },
+      data: {
+        projectStatus: 'REJECTED',
+        approvedAt: null,
+        rejectionReason: reason,
+      },
     });
 
     return res.json({ success: true, message: 'Project rejected.' });

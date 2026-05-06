@@ -2,7 +2,6 @@ import crypto from 'crypto';
 import Razorpay from 'razorpay';
 import { Decimal } from '@prisma/client/runtime/library';
 import prisma from '../utils/prisma.js';
-import { ensureProjectFundRelease } from '../utils/builderFunds.js';
 
 function toNumber(v) {
   const n = Number(v ?? 0);
@@ -378,11 +377,6 @@ export async function investFromWallet(req, res) {
             projectStatus: 'PENDING_APPROVAL',
             rejectionReason: null,
           },
-        });
-        await ensureProjectFundRelease(tx, {
-          projectId,
-          builderId: project.builderId,
-          amount: aggregate._sum.investedAmount ?? actualAmount,
         });
       }
 

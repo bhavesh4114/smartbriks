@@ -1,5 +1,4 @@
 import prisma from '../utils/prisma.js';
-import { serializeProjectTimelineForInvestor } from '../utils/projectTimeline.js';
 
 function serializeProject(p) {
   const totalValue = Number(p.totalValue?.toString?.() ?? p.totalValue ?? 0);
@@ -27,57 +26,36 @@ function serializeProject(p) {
 
 function parseAmenities(keyFeatures) {
   if (!keyFeatures || typeof keyFeatures !== 'string') return [];
-  const normalized = keyFeatures
-    .replace(/\r\n/g, '\n')
-    .replace(/[|;•]/g, ',')
-    .replace(/\n+/g, ',');
-
-  const directSplit = normalized
+  return keyFeatures
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
+}
 
-  if (directSplit.length > 1) {
-    return directSplit;
-  }
-
-  const knownAmenities = [
-    'Swimming Pool',
-    'Gymnasium',
-    'Children Play Area',
-    'Garden',
-    'Club House',
-    '24x7 Security',
-    '24/7 Security',
-    'Parking Facility',
-    'CCTV Surveillance',
-    'Power Backup',
-    'Lift',
-    'Jogging Track',
-    'Community Hall',
-    'Indoor Games',
-    'Landscape Garden',
-    'Visitor Parking',
-    'Fire Safety',
+function buildTimeline(progress) {
+  const pct = Math.max(0, Math.min(100, Number(progress || 0)));
+  return [
+    {
+      phase: 'Foundation',
+      status: pct >= 100 ? 'Completed' : pct >= 25 ? 'In Progress' : 'Pending',
+      progress: pct >= 100 ? 100 : Math.min(100, pct * 4),
+    },
+    {
+      phase: 'Structure',
+      status: pct >= 75 ? 'Completed' : pct >= 35 ? 'In Progress' : 'Pending',
+      progress: pct < 25 ? 0 : Math.min(100, (pct - 25) * 1.33),
+    },
+    {
+      phase: 'Interiors',
+      status: pct >= 95 ? 'Completed' : pct >= 55 ? 'In Progress' : 'Pending',
+      progress: pct < 50 ? 0 : Math.min(100, (pct - 50) * 2),
+    },
+    {
+      phase: 'Handover',
+      status: pct >= 100 ? 'Completed' : pct >= 80 ? 'In Progress' : 'Pending',
+      progress: pct < 75 ? 0 : Math.min(100, (pct - 75) * 4),
+    },
   ];
-
-  const source = normalized.replace(/\s+/g, ' ').trim();
-  const extracted = [];
-  let remaining = source;
-
-  for (const amenity of knownAmenities) {
-    const pattern = new RegExp(amenity.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-    if (pattern.test(remaining)) {
-      extracted.push(amenity);
-      remaining = remaining.replace(pattern, ' ').replace(/\s+/g, ' ').trim();
-    }
-  }
-
-  if (extracted.length > 0) {
-    return extracted;
-  }
-
-  return directSplit;
 }
 
 function serializeProjectDetails(p) {
@@ -89,7 +67,7 @@ function serializeProjectDetails(p) {
     totalProjectCost > 0 ? Math.min(100, (fundsRaised / totalProjectCost) * 100) : 0;
 
   const amenities = parseAmenities(p.keyFeatures);
-  const timeline = serializeProjectTimelineForInvestor(p.timeline || []);
+  const timeline = buildTimeline(progressPercentage);
 
   return {
     id: p.id,
@@ -141,9 +119,6 @@ export async function listApprovedProjectsForInvestor(req, res) {
         builder: { select: { id: true, companyName: true } },
         investments: { select: { investedAmount: true } },
         images: { select: { imageUrl: true } },
-        timeline: {
-          orderBy: { createdAt: 'asc' },
-        },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -188,9 +163,6 @@ export async function getApprovedProjectDetailsForInvestor(req, res) {
           take: 10,
         },
         images: { select: { imageUrl: true } },
-        timeline: {
-          orderBy: { createdAt: 'asc' },
-        },
       },
     });
 

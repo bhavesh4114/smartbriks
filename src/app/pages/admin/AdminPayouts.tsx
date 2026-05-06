@@ -4,7 +4,6 @@ import { DashboardLayout } from "../../components/layout/DashboardLayout";
 import { adminMenuItems } from "../../config/menuItems";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
-import { Button } from "../../components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
 import { formatINR } from "../../utils/currency";
 
@@ -15,14 +14,12 @@ type PayoutRow = {
   amount: number | string;
   date: string | Date;
   status: "Paid" | "Pending";
-  type?: string;
 };
 
 export default function AdminPayouts() {
   const navigate = useNavigate();
   const [payouts, setPayouts] = useState<PayoutRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [approvingId, setApprovingId] = useState<number | string | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -60,41 +57,6 @@ export default function AdminPayouts() {
     fetchPayouts();
   }, [navigate]);
 
-  const approvePayout = async (id: number | string) => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
-    if (!token) {
-      navigate("/login", { replace: true });
-      return;
-    }
-
-    setApprovingId(id);
-    setError("");
-    try {
-      const res = await fetch(`/api/admin/payouts/${id}/approve`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.status === 401 || res.status === 403) {
-        navigate("/login", { replace: true });
-        return;
-      }
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data?.success) {
-        setError(data?.message || "Failed to approve payout.");
-        return;
-      }
-      setPayouts((current) =>
-        current.map((row) =>
-          row.id === id ? { ...row, status: "Paid" as const } : row
-        )
-      );
-    } catch {
-      setError("Network error while approving payout.");
-    } finally {
-      setApprovingId(null);
-    }
-  };
-
   const toShortDate = (value: string | Date) => {
     const d = new Date(value);
     if (Number.isNaN(d.getTime())) return "N/A";
@@ -129,7 +91,6 @@ export default function AdminPayouts() {
                     <TableHead>Amount</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -147,31 +108,18 @@ export default function AdminPayouts() {
                             {payout.status}
                           </Badge>
                         </TableCell>
-                        <TableCell>
-                          {payout.status === "Pending" && payout.type === "builder_release" ? (
-                            <Button
-                              size="sm"
-                              onClick={() => approvePayout(payout.id)}
-                              disabled={approvingId === payout.id}
-                            >
-                              {approvingId === payout.id ? "Approving..." : "Approve"}
-                            </Button>
-                          ) : (
-                            <span className="text-sm text-gray-400">-</span>
-                          )}
-                        </TableCell>
                       </TableRow>
                     ))}
                   {loading && (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center text-gray-500">
+                      <TableCell colSpan={5} className="text-center text-gray-500">
                         Loading payouts...
                       </TableCell>
                     </TableRow>
                   )}
                   {!loading && payouts.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center text-gray-500">
+                      <TableCell colSpan={5} className="text-center text-gray-500">
                         No payouts found.
                       </TableCell>
                     </TableRow>

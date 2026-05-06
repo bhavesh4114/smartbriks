@@ -1,7 +1,4 @@
 import prisma from '../utils/prisma.js';
-import { getBuilderReleasedFunds } from '../utils/builderFunds.js';
-import { decimalToString, getBuilderAccounting } from '../utils/accounting.js';
-import { buildProjectTimeline } from '../utils/projectTimeline.js';
 
 /**
  * Get enriched builder profile (own)
@@ -11,7 +8,7 @@ export async function getBuilderProfile(req, res) {
   try {
     const builderId = req.auth.id;
 
-    const [builder, projectCount, investmentAgg, accounting, releasedFunds] = await Promise.all([
+    const [builder, projectCount, investmentAgg] = await Promise.all([
       prisma.builder.findUnique({
         where: { id: builderId },
         select: {
@@ -29,8 +26,6 @@ export async function getBuilderProfile(req, res) {
         where: { project: { builderId } },
         _sum: { investedAmount: true },
       }),
-      getBuilderAccounting(prisma, builderId),
-      getBuilderReleasedFunds(prisma, builderId),
     ]);
 
     if (!builder) {
@@ -38,7 +33,7 @@ export async function getBuilderProfile(req, res) {
     }
 
     const verified = builder.isApproved || builder.kycStatus === 'VERIFIED';
-    const fundsRaised = accounting.totalFundsRaised ?? investmentAgg?._sum?.investedAmount ?? 0;
+    const fundsRaised = investmentAgg?._sum?.investedAmount ?? 0;
 
     return res.json({
       success: true,
@@ -61,11 +56,7 @@ export async function getBuilderProfile(req, res) {
         },
         stats: {
           total_projects: projectCount,
-          funds_raised: decimalToString(fundsRaised),
-          totalFundsRaised: decimalToString(fundsRaised),
-          totalPayoutGiven: decimalToString(accounting.totalPayoutGiven),
-          remainingBalance: decimalToString(accounting.remainingBalance),
-          wallet_balance: releasedFunds?.toString?.() ?? "0",
+          funds_raised: fundsRaised?.toString?.() ?? "0",
         },
         bank_information: {
           bank_name: null,
@@ -178,9 +169,6 @@ export async function getProjectInvestments(req, res) {
     const project = await prisma.project.findFirst({
       where: { id: projectId, builderId },
       include: {
-        timeline: {
-          orderBy: { createdAt: 'asc' },
-        },
         investments: {
           include: {
             user: { // Prisma relation: investor details
@@ -218,11 +206,9 @@ export async function getProjectInvestments(req, res) {
           totalValue: project.totalValue,
           totalShares: project.totalShares,
           projectStatus: project.projectStatus,
-          constructionProgress: project.constructionProgress,
           totalInvested: totalInvested?.toString?.() ?? totalInvested,
           investorCount: project.investments?.length ?? 0,
           progress,
-          timeline: buildProjectTimeline(project.timeline || []),
         },
         investments: project.investments.map((inv) => ({
           id: inv.id,
@@ -338,8 +324,6 @@ export async function getBuilderDashboard(req, res) {
       projectStatusCounts,
       investorDistinct,
       fundsAgg,
-      accounting,
-      releasedFunds,
       recentInvestments,
       recentProjectsRaw,
       recentInvestorsRaw,
@@ -360,8 +344,6 @@ export async function getBuilderDashboard(req, res) {
         where: { project: { builderId } },
         _sum: { investedAmount: true },
       }),
-      getBuilderAccounting(prisma, builderId),
-      getBuilderReleasedFunds(prisma, builderId),
       prisma.investment.findMany({
         where: {
           project: { builderId },
@@ -429,9 +411,7 @@ export async function getBuilderDashboard(req, res) {
       };
     });
 
-    const fundsRaised = accounting.totalFundsRaised ?? fundsAgg?._sum?.investedAmount ?? 0;
-    const totalPayoutGiven = accounting.totalPayoutGiven ?? 0;
-    const remainingBalance = accounting.remainingBalance ?? 0;
+    const fundsRaised = fundsAgg?._sum?.investedAmount ?? 0;
 
     const recentProjects = recentProjectsRaw.map((project) => {
       const totalInvested = (project.investments || []).reduce((sum, inv) => {
@@ -461,11 +441,7 @@ export async function getBuilderDashboard(req, res) {
         stats: {
           total_projects: totalProjects,
           total_investors: investorDistinct.length,
-          funds_raised: decimalToString(fundsRaised),
-          totalFundsRaised: decimalToString(fundsRaised),
-          totalPayoutGiven: decimalToString(totalPayoutGiven),
-          remainingBalance: decimalToString(remainingBalance),
-          wallet_balance: releasedFunds?.toString?.() ?? '0',
+          funds_raised: fundsRaised?.toString?.() ?? '0',
           active_projects: activeProjects,
         },
         project_status: [
