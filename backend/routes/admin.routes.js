@@ -27,7 +27,12 @@ import {
   rejectBuilder,
 } from '../controllers/adminBuilder.controller.js';
 import { listInvestments } from '../controllers/adminInvestment.controller.js';
-import { listPayouts, approvePayout } from '../controllers/adminPayout.controller.js';
+import {
+  listPayouts,
+  approvePayout,
+  approveWithdrawal,
+  rejectWithdrawal,
+} from '../controllers/adminPayout.controller.js';
 import { listDocuments } from '../controllers/adminDocument.controller.js';
 
 const router = Router();
@@ -81,6 +86,8 @@ router.get('/investments', listInvestments);
 // Payout records
 router.get('/payouts', listPayouts);
 router.post('/payouts/:id/approve', approvePayout);
+router.post('/withdrawals/:id/approve', approveWithdrawal);
+router.post('/withdrawals/:id/reject', rejectWithdrawal);
 
 // Document verification
 router.get('/documents', listDocuments);

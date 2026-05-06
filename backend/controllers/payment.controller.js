@@ -172,6 +172,14 @@ function toNumber(v) {
   return Number.isFinite(n) ? n : 0;
 }
 
+async function ensureWallet(tx, userId) {
+  return tx.wallet.upsert({
+    where: { userId },
+    update: {},
+    create: { userId, balance: new Decimal(0) },
+  });
+}
+
 /**
  * POST /api/investor/create-order
  * Body: { projectId, amount }
@@ -427,6 +435,43 @@ export async function verifyInvestorPayment(req, res) {
           sharesPurchased,
           investmentStatus: 'ACTIVE',
         },
+      });
+
+      const wallet = await ensureWallet(tx, investorId);
+      await tx.walletTransaction.createMany({
+        data: [
+          {
+            walletId: wallet.id,
+            amount: actualAmount,
+            type: 'CREDIT',
+            description: `Razorpay payment received for project #${projId}`,
+            status: 'SUCCESS',
+            externalRef: `RAZORPAY_${razorpayPaymentId}`,
+            metadata: {
+              provider: 'razorpay',
+              projectId: projId,
+              investmentId: investment.id,
+              razorpay_order_id: razorpayOrderId,
+              razorpay_payment_id: razorpayPaymentId,
+            },
+          },
+          {
+            walletId: wallet.id,
+            amount: actualAmount,
+            type: 'DEBIT',
+            description: `Investment in project #${projId}`,
+            status: 'SUCCESS',
+            externalRef: `INVEST_${investment.id}`,
+            metadata: {
+              source: 'razorpay_project_payment',
+              projectId: projId,
+              investmentId: investment.id,
+              razorpay_order_id: razorpayOrderId,
+              razorpay_payment_id: razorpayPaymentId,
+            },
+          },
+        ],
+        skipDuplicates: true,
       });
 
       await tx.payment.update({

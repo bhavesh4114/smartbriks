@@ -47,6 +47,13 @@ export function buildProjectTimeline(rows = []) {
   return defaultTimelineStages.map((item) => byStage.get(item.stage) ?? item);
 }
 
+export function calculateOverallTimelineProgress(rows = []) {
+  const timeline = buildProjectTimeline(rows);
+  if (!timeline.length) return 0;
+  const total = timeline.reduce((sum, item) => sum + clampProgress(item.progress), 0);
+  return clampProgress(total / timeline.length);
+}
+
 export function serializeProjectTimelineForInvestor(rows = []) {
   return buildProjectTimeline(rows).map((item) => ({
     phase: item.stage,

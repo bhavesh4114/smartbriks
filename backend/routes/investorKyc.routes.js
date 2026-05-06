@@ -3,7 +3,11 @@ import { authenticate } from '../middleware/auth.middleware.js';
 import { investorOnly } from '../middleware/role.middleware.js';
 import { uploadInvestorKycDocuments } from '../middleware/upload.middleware.js';
 import { submitInvestorKyc, getInvestorKycStatus } from '../controllers/investorKyc.controller.js';
-import { getInvestorDashboard } from '../controllers/investorDashboard.controller.js';
+import {
+  createWithdrawalRequest,
+  getInvestorDashboard,
+  getInvestorNotifications,
+} from '../controllers/investorDashboard.controller.js';
 import {
   getInvestorProfile,
   getInvestorIdentity,
@@ -27,6 +31,8 @@ import {
 const router = Router();
 
 router.get('/dashboard', authenticate, investorOnly, getInvestorDashboard);
+router.get('/notifications', authenticate, investorOnly, getInvestorNotifications);
+router.post('/withdrawals', authenticate, investorOnly, createWithdrawalRequest);
 router.post('/kyc', authenticate, investorOnly, uploadInvestorKycDocuments, submitInvestorKyc);
 router.get('/kyc/status', authenticate, investorOnly, getInvestorKycStatus);
 router.get('/profile', authenticate, investorOnly, getInvestorProfile);

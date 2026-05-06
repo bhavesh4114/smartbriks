@@ -1,5 +1,6 @@
 import prisma from '../utils/prisma.js';
 import { ensureProjectFundRelease } from '../utils/builderFunds.js';
+import { getProjectAccounting, toDecimal } from '../utils/accounting.js';
 
 function toNumber(value) {
   const num = Number(value ?? 0);
@@ -12,7 +13,7 @@ function toNumber(value) {
  */
 export async function listPayouts(req, res) {
   try {
-    const [payouts, builderReleasePayments, pendingProjects] = await Promise.all([
+    const [payouts, investorWithdrawals, builderReleasePayments, pendingProjects] = await Promise.all([
       prisma.userReturn.findMany({
         include: {
           user: { select: { id: true, fullName: true } },
@@ -24,6 +25,19 @@ export async function listPayouts(req, res) {
           },
         },
         orderBy: { creditedAt: 'desc' },
+      }),
+      prisma.withdrawal.findMany({
+        include: {
+          investor: { select: { id: true, fullName: true } },
+          project: {
+            select: {
+              id: true,
+              title: true,
+              builder: { select: { id: true, companyName: true } },
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
       }),
       prisma.payment.findMany({
         where: {
@@ -53,6 +67,22 @@ export async function listPayouts(req, res) {
       amount: p.amount?.toString?.() ?? p.amount,
       date: p.returnDistribution?.distributionDate ?? p.creditedAt,
       status: 'Paid',
+    }));
+
+    const withdrawalRows = investorWithdrawals.map((withdrawal) => ({
+      id: withdrawal.id,
+      project: withdrawal.project?.title ?? 'Unknown Project',
+      investor: withdrawal.investor?.fullName ?? 'Investor',
+      builder: withdrawal.project?.builder?.companyName ?? 'Builder',
+      amount: withdrawal.amount?.toString?.() ?? withdrawal.amount,
+      date: withdrawal.createdAt,
+      status:
+        withdrawal.status === 'APPROVED'
+          ? 'Paid'
+          : withdrawal.status === 'REJECTED'
+          ? 'Rejected'
+          : 'Pending',
+      type: 'investor_withdrawal',
     }));
 
     const paymentProjectIds = new Set(builderReleasePayments.map((payment) => payment.projectId));
@@ -88,7 +118,7 @@ export async function listPayouts(req, res) {
         };
       });
 
-    const rows = [...requestRows, ...fallbackRows, ...paidRows].sort(
+    const rows = [...requestRows, ...fallbackRows, ...withdrawalRows, ...paidRows].sort(
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
     );
 
@@ -212,5 +242,110 @@ export async function approvePayout(req, res) {
   } catch (err) {
     console.error('approvePayout:', err);
     return res.status(500).json({ success: false, message: 'Failed to approve payout.' });
+  }
+}
+
+/**
+ * POST /api/admin/withdrawals/:id/approve
+ */
+export async function approveWithdrawal(req, res) {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid withdrawal id.' });
+    }
+
+    const withdrawal = await prisma.withdrawal.findUnique({
+      where: { id },
+      include: {
+        project: { select: { id: true, builderId: true } },
+      },
+    });
+
+    if (!withdrawal) {
+      return res.status(404).json({ success: false, message: 'Withdrawal request not found.' });
+    }
+    if (withdrawal.status === 'APPROVED') {
+      return res.json({ success: true, message: 'Withdrawal already approved.' });
+    }
+    if (withdrawal.status === 'REJECTED') {
+      return res.status(400).json({ success: false, message: 'Rejected withdrawal cannot be approved.' });
+    }
+
+    const accounting = await getProjectAccounting(prisma, withdrawal.projectId);
+    const requestedAmount = toDecimal(withdrawal.amount);
+    if (requestedAmount.greaterThan(accounting.remainingBalance)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Withdrawal amount exceeds available builder balance.',
+        data: {
+          totalFundsRaised: accounting.totalFundsRaised.toString(),
+          totalPayoutGiven: accounting.totalPayoutGiven.toString(),
+          remainingBalance: accounting.remainingBalance.toString(),
+          requestedAmount: requestedAmount.toString(),
+        },
+      });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.withdrawal.update({
+        where: { id },
+        data: { status: 'APPROVED' },
+      });
+
+      await tx.walletTransaction.updateMany({
+        where: {
+          metadata: { path: ['withdrawalId'], equals: id },
+        },
+        data: { status: 'SUCCESS' },
+      });
+    });
+
+    return res.json({
+      success: true,
+      message: 'Withdrawal approved and counted as investor payout.',
+    });
+  } catch (err) {
+    console.error('approveWithdrawal:', err);
+    return res.status(500).json({ success: false, message: 'Failed to approve withdrawal.' });
+  }
+}
+
+/**
+ * POST /api/admin/withdrawals/:id/reject
+ */
+export async function rejectWithdrawal(req, res) {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid withdrawal id.' });
+    }
+
+    const withdrawal = await prisma.withdrawal.findUnique({ where: { id } });
+    if (!withdrawal) {
+      return res.status(404).json({ success: false, message: 'Withdrawal request not found.' });
+    }
+    if (withdrawal.status === 'APPROVED') {
+      return res.status(400).json({ success: false, message: 'Approved withdrawal cannot be rejected.' });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.withdrawal.update({
+        where: { id },
+        data: { status: 'REJECTED' },
+      });
+
+      await tx.walletTransaction.updateMany({
+        where: {
+          metadata: { path: ['withdrawalId'], equals: id },
+        },
+        data: { status: 'FAILED' },
+      });
+    });
+
+    return res.json({ success: true, message: 'Withdrawal rejected.' });
+  } catch (err) {
+    console.error('rejectWithdrawal:', err);
+    return res.status(500).json({ success: false, message: 'Failed to reject withdrawal.' });
   }
 }

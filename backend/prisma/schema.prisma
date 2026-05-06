@@ -60,6 +60,12 @@ enum WalletTransactionStatus {
   FAILED
 }
 
+enum WithdrawalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 // =====================================
 // MODELS
 // =====================================
@@ -80,6 +86,7 @@ model User {
   payments    Payment[]
   kyc         KYC[]
   userReturns UserReturn[]
+  withdrawals Withdrawal[]
   profile     InvestorProfile?
   wallet      Wallet?
 
@@ -228,6 +235,7 @@ model Project {
   rejectionReason String?      @map("rejection_reason")
   startDate      DateTime?     @map("start_date")
   endDate        DateTime?     @map("end_date")
+  constructionProgress Int     @default(0) @map("construction_progress")
   createdAt      DateTime      @default(now()) @map("created_at")
   updatedAt      DateTime      @updatedAt @map("updated_at")
 
@@ -237,6 +245,7 @@ model Project {
   payments    Payment[]
   images      ProjectImage[]
   timeline    ProjectTimeline[]
+  withdrawals Withdrawal[]
 
   @@index([builderId])
   @@index([projectStatus])
@@ -339,6 +348,24 @@ model UserReturn {
   @@index([returnDistributionId])
   @@index([userId])
   @@map("user_returns")
+}
+
+model Withdrawal {
+  id         Int              @id @default(autoincrement())
+  investorId Int             @map("investor_id")
+  projectId  Int             @map("project_id")
+  amount     Decimal         @db.Decimal(18, 2)
+  status     WithdrawalStatus @default(PENDING)
+  createdAt  DateTime        @default(now()) @map("created_at")
+  updatedAt  DateTime        @updatedAt @map("updated_at")
+
+  investor User    @relation(fields: [investorId], references: [id], onDelete: Cascade)
+  project  Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([investorId])
+  @@index([projectId])
+  @@index([status])
+  @@map("withdrawals")
 }
 
 model KYC {

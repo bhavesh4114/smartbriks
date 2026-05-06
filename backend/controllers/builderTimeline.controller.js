@@ -1,5 +1,5 @@
 import prisma from '../utils/prisma.js';
-import { buildProjectTimeline } from '../utils/projectTimeline.js';
+import { buildProjectTimeline, calculateOverallTimelineProgress } from '../utils/projectTimeline.js';
 
 const allowedStages = new Set(['Foundation', 'Structure', 'Interiors', 'Handover']);
 const allowedStatuses = new Set(['pending', 'in_progress', 'completed']);
@@ -15,7 +15,8 @@ export async function updateProjectTimeline(req, res) {
     const { projectId, stage, status, progress, description } = req.body ?? {};
 
     const normalizedProjectId = Number.parseInt(projectId, 10);
-    const normalizedProgress = Math.max(0, Math.min(100, Math.round(toNumber(progress))));
+    let normalizedProgress = Math.max(0, Math.min(100, Math.round(toNumber(progress))));
+    let normalizedStatus = status;
     const normalizedDescription = String(description ?? '').trim();
 
     if (!Number.isInteger(normalizedProjectId)) {
@@ -24,7 +25,7 @@ export async function updateProjectTimeline(req, res) {
     if (!allowedStages.has(stage)) {
       return res.status(400).json({ success: false, message: 'Invalid stage selected.' });
     }
-    if (!allowedStatuses.has(status)) {
+    if (!allowedStatuses.has(normalizedStatus)) {
       return res.status(400).json({ success: false, message: 'Invalid status selected.' });
     }
     if (!Number.isFinite(normalizedProgress)) {
@@ -42,30 +43,57 @@ export async function updateProjectTimeline(req, res) {
       return res.status(404).json({ success: false, message: 'Project not found.' });
     }
 
-    const timelineRow = await prisma.projectTimeline.upsert({
-      where: {
-        projectId_stage: {
+    if (normalizedStatus === 'completed') {
+      normalizedProgress = 100;
+    } else if (normalizedProgress === 100) {
+      normalizedStatus = 'completed';
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      const timelineRow = await tx.projectTimeline.upsert({
+        where: {
+          projectId_stage: {
+            projectId: normalizedProjectId,
+            stage,
+          },
+        },
+        update: {
+          status: normalizedStatus,
+          progress: normalizedProgress,
+          description: normalizedDescription,
+        },
+        create: {
           projectId: normalizedProjectId,
           stage,
+          status: normalizedStatus,
+          progress: normalizedProgress,
+          description: normalizedDescription,
         },
-      },
-      update: {
-        status,
-        progress: normalizedProgress,
-        description: normalizedDescription,
-      },
-      create: {
-        projectId: normalizedProjectId,
-        stage,
-        status,
-        progress: normalizedProgress,
-        description: normalizedDescription,
-      },
-    });
+      });
 
-    const allTimelineRows = await prisma.projectTimeline.findMany({
-      where: { projectId: normalizedProjectId },
-      orderBy: { createdAt: 'asc' },
+      const allTimelineRows = await tx.projectTimeline.findMany({
+        where: { projectId: normalizedProjectId },
+        orderBy: { createdAt: 'asc' },
+      });
+      const overallProgress = calculateOverallTimelineProgress(allTimelineRows);
+      const projectUpdateData = {
+        constructionProgress: overallProgress,
+      };
+      if (overallProgress === 100) {
+        projectUpdateData.projectStatus = 'COMPLETED';
+      }
+
+      const updatedProject = await tx.project.update({
+        where: { id: normalizedProjectId },
+        data: projectUpdateData,
+        select: {
+          id: true,
+          projectStatus: true,
+          constructionProgress: true,
+        },
+      });
+
+      return { timelineRow, allTimelineRows, updatedProject, overallProgress };
     });
 
     return res.json({
@@ -74,13 +102,16 @@ export async function updateProjectTimeline(req, res) {
       data: {
         projectId: normalizedProjectId,
         builderId,
-        timeline: buildProjectTimeline(allTimelineRows),
+        timeline: buildProjectTimeline(result.allTimelineRows),
+        overallProgress: result.overallProgress,
+        projectStatus: result.updatedProject.projectStatus,
+        constructionProgress: result.updatedProject.constructionProgress,
         updated: {
-          stage: timelineRow.stage,
-          status: timelineRow.status,
-          progress: timelineRow.progress,
-          description: timelineRow.description,
-          updatedAt: timelineRow.updatedAt,
+          stage: result.timelineRow.stage,
+          status: result.timelineRow.status,
+          progress: result.timelineRow.progress,
+          description: result.timelineRow.description,
+          updatedAt: result.timelineRow.updatedAt,
         },
       },
     });
