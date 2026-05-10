@@ -8,6 +8,7 @@ import {
 } from '../controllers/adminKyc.controller.js';
 import {
   listAdminProjects,
+  getAdminProjectDetails,
   approveProject,
   rejectProject,
 } from '../controllers/adminProject.controller.js';
@@ -27,7 +28,11 @@ import {
   rejectBuilder,
 } from '../controllers/adminBuilder.controller.js';
 import { listInvestments } from '../controllers/adminInvestment.controller.js';
-import { listPayouts } from '../controllers/adminPayout.controller.js';
+import {
+  listPayouts,
+  approvePayoutRequest,
+  denyPayoutRequest,
+} from '../controllers/adminPayout.controller.js';
 import { listDocuments } from '../controllers/adminDocument.controller.js';
 
 const router = Router();
@@ -46,6 +51,7 @@ router.patch('/kyc/:id/reject', rejectInvestorKyc);
 
 // Project approval workflow
 router.get('/projects', listAdminProjects);
+router.get('/projects/:id', getAdminProjectDetails);
 router.post('/projects/:id/approve', approveProject);
 router.post('/projects/:id/reject', rejectProject);
 
@@ -80,6 +86,8 @@ router.get('/investments', listInvestments);
 
 // Payout records
 router.get('/payouts', listPayouts);
+router.post('/payouts/:projectId/approve', approvePayoutRequest);
+router.post('/payouts/:projectId/deny', denyPayoutRequest);
 
 // Document verification
 router.get('/documents', listDocuments);

@@ -19,8 +19,20 @@ type BuilderProfilePayload = {
   company_details: {
     company_name: string;
     registration_number: string | null;
+    business_type?: string | null;
+    year_of_establishment?: string | null;
+    company_pan?: string | null;
+    gst_number?: string | null;
+    rera_number?: string | null;
+    email?: string | null;
     phone: string | null;
     address: string | null;
+    address_line_1?: string | null;
+    address_line_2?: string | null;
+    city?: string | null;
+    state?: string | null;
+    pincode?: string | null;
+    country?: string | null;
   };
   profile_info: {
     logo: string | null;
@@ -97,7 +109,7 @@ export default function BuilderProfile() {
         setCompanyForm({
           companyName: payload.company_details.company_name || "",
           registrationNumber: payload.company_details.registration_number || "",
-          email: payload.basic_info.email || "",
+          email: payload.company_details.email || payload.basic_info.email || "",
           phone: payload.company_details.phone || "",
           address: payload.company_details.address || "",
         });
@@ -322,7 +334,7 @@ export default function BuilderProfile() {
                       </div>
                     </div>
                     <div className="space-y-2 min-w-0">
-                      <Label htmlFor="routing" className="text-[#374151] font-medium">Routing Number</Label>
+                      <Label htmlFor="routing" className="text-[#374151] font-medium">IFSC / Routing Number</Label>
                       <Input
                         id="routing"
                         value={bankForm.routing}

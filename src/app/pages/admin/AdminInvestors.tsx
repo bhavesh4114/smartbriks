@@ -262,6 +262,7 @@ export default function AdminInvestors() {
 
   const fileUrl = (img: string | null | undefined) =>
     img ? `/api/uploads/${img.replace(/^\/+/, "")}` : null;
+  const viewerSelfieUrl = fileUrl(viewerData?.profile?.selfieImage || null);
 
   const kycClass = (status: InvestorRow["kyc_status"]) =>
     status === "VERIFIED" ? "bg-green-500" : status === "PENDING" ? "bg-amber-500" : "bg-red-500";
@@ -426,7 +427,20 @@ export default function AdminInvestors() {
             {!viewerLoading && !viewerData && <p className="text-sm text-gray-600">No details found.</p>}
             {!viewerLoading && viewerData && (
               <div className="space-y-5">
-                <div className="grid gap-3 md:grid-cols-2">
+                <div className="grid gap-3 md:grid-cols-[auto_1fr_1fr]">
+                  <div className="flex justify-center rounded-lg border p-3 md:justify-start">
+                    <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full border border-gray-200 bg-blue-600 text-2xl font-semibold text-white">
+                      {viewerSelfieUrl ? (
+                        <img
+                          src={viewerSelfieUrl}
+                          alt={`${viewerData.fullName} profile`}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        viewerData.fullName.slice(0, 2).toUpperCase()
+                      )}
+                    </div>
+                  </div>
                   <div className="rounded-lg border p-3">
                     <p className="text-xs text-gray-500">Name</p>
                     <p className="font-medium">{viewerData.fullName}</p>

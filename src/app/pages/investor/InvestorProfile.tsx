@@ -93,6 +93,9 @@ type InvestorProfileData = {
     id: number;
     balance: number | string;
   };
+  kycImages?: {
+    selfieImage?: string | null;
+  };
   kyc_documents: KycDoc[];
 };
 
@@ -125,7 +128,6 @@ export default function InvestorProfile() {
 
   const [form, setForm] = useState({
     firstName: "",
-    lastName: "",
     email: "",
     phone: "",
     address: "",
@@ -151,12 +153,16 @@ export default function InvestorProfile() {
 
   const pickFirst = (...values: Array<string | null | undefined>) =>
     values.find((v) => typeof v === "string" && v.trim().length > 0)?.trim() ?? "";
+  const fileUrl = (img: string | null | undefined) =>
+    img ? `/api/uploads/${img.replace(/^\/+/, "")}` : "";
+  const profilePhotoUrl =
+    fileUrl(profile?.kycImages?.selfieImage) ||
+    fileUrl(profile?.kyc_documents?.find((doc) => doc.documentType === "INVESTOR_SELFIE")?.documentImage) ||
+    fileUrl(profile?.kyc_documents?.find((doc) => doc.documentType === "KYC_SUBMISSION")?.documentImage);
 
   const fillFormFromProfile = (nextProfile: InvestorProfileData) => {
-    const [firstName, ...rest] = (nextProfile.user.fullName || "").split(" ");
     setForm({
-      firstName: firstName || "",
-      lastName: rest.join(" ") || "",
+      firstName: nextProfile.user.fullName || "",
       email: nextProfile.user.email || "",
       phone: nextProfile.user.mobileNumber || "",
       address: pickFirst(nextProfile.profile?.address, nextProfile.user.address),
@@ -412,10 +418,9 @@ export default function InvestorProfile() {
     }
 
     setSavingPersonal(true);
-    const fullName = `${form.firstName.trim()} ${form.lastName.trim()}`.trim();
+    const fullName = form.firstName.trim();
     const payload = {
-      firstName: form.firstName.trim(),
-      lastName: form.lastName.trim(),
+      firstName: fullName,
       fullName,
       email: form.email.trim(),
       mobileNumber: form.phone.trim(),
@@ -610,8 +615,16 @@ export default function InvestorProfile() {
         <Card className="bg-white border-gray-200 rounded-2xl shadow-sm">
           <CardContent className="p-6">
             <div className="flex flex-col items-start gap-5 sm:flex-row sm:gap-6">
-              <div className="flex h-24 w-24 items-center justify-center rounded-full border border-gray-200 bg-blue-600 text-white text-3xl font-semibold">
-                {(profile?.user?.fullName || "I").slice(0, 2).toUpperCase()}
+              <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full border border-gray-200 bg-blue-600 text-white text-3xl font-semibold">
+                {profilePhotoUrl ? (
+                  <img
+                    src={profilePhotoUrl}
+                    alt={`${profile?.user?.fullName || "Investor"} profile`}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  (profile?.user?.fullName || "I").slice(0, 2).toUpperCase()
+                )}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-2 sm:gap-3">
@@ -717,25 +730,13 @@ export default function InvestorProfile() {
                 <form className="space-y-6" onSubmit={handlePersonalSave}>
                   <div className="grid gap-6 md:grid-cols-2">
                     <div className="space-y-2">
-                      <Label htmlFor="firstName">First Name</Label>
+                      <Label htmlFor="firstName">Full Name</Label>
                       <div className="relative">
                         <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                         <Input
                           id="firstName"
                           value={form.firstName}
                           onChange={(e) => setForm((f) => ({ ...f, firstName: e.target.value }))}
-                          className="pl-10"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="lastName">Last Name</Label>
-                      <div className="relative">
-                        <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                        <Input
-                          id="lastName"
-                          value={form.lastName}
-                          onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))}
                           className="pl-10"
                         />
                       </div>

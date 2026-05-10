@@ -19,6 +19,23 @@ export async function getBuilderProfile(req, res) {
           createdAt: true,
           kycStatus: true,
           isApproved: true,
+          businessType: true,
+          yearOfEstablishment: true,
+          companyPan: true,
+          gstNumber: true,
+          officialEmail: true,
+          officialMobile: true,
+          addressLine1: true,
+          addressLine2: true,
+          city: true,
+          state: true,
+          pincode: true,
+          country: true,
+          reraNumber: true,
+          accountHolderName: true,
+          bankName: true,
+          accountNumber: true,
+          ifscCode: true,
         },
       }),
       prisma.project.count({ where: { builderId } }),
@@ -34,6 +51,16 @@ export async function getBuilderProfile(req, res) {
 
     const verified = builder.isApproved || builder.kycStatus === 'VERIFIED';
     const fundsRaised = investmentAgg?._sum?.investedAmount ?? 0;
+    const officeAddress = [
+      builder.addressLine1,
+      builder.addressLine2,
+      builder.city,
+      builder.state,
+      builder.pincode,
+      builder.country,
+    ]
+      .filter(Boolean)
+      .join(', ');
 
     return res.json({
       success: true,
@@ -45,9 +72,21 @@ export async function getBuilderProfile(req, res) {
         },
         company_details: {
           company_name: builder.companyName,
-          registration_number: null,
-          phone: builder.mobileNumber,
-          address: null,
+          registration_number: builder.reraNumber || builder.gstNumber || builder.companyPan || null,
+          business_type: builder.businessType,
+          year_of_establishment: builder.yearOfEstablishment,
+          company_pan: builder.companyPan,
+          gst_number: builder.gstNumber,
+          rera_number: builder.reraNumber,
+          phone: builder.officialMobile || builder.mobileNumber,
+          email: builder.officialEmail || builder.email,
+          address: officeAddress || null,
+          address_line_1: builder.addressLine1,
+          address_line_2: builder.addressLine2,
+          city: builder.city,
+          state: builder.state,
+          pincode: builder.pincode,
+          country: builder.country,
         },
         profile_info: {
           logo: null,
@@ -59,10 +98,10 @@ export async function getBuilderProfile(req, res) {
           funds_raised: fundsRaised?.toString?.() ?? "0",
         },
         bank_information: {
-          bank_name: null,
-          account_holder_name: null,
-          account_number_masked: null,
-          routing_or_ifsc: null,
+          bank_name: builder.bankName,
+          account_holder_name: builder.accountHolderName,
+          account_number_masked: builder.accountNumber,
+          routing_or_ifsc: builder.ifscCode,
         },
       },
     });
@@ -324,6 +363,7 @@ export async function getBuilderDashboard(req, res) {
       projectStatusCounts,
       investorDistinct,
       fundsAgg,
+      releasedFundsAgg,
       recentInvestments,
       recentProjectsRaw,
       recentInvestorsRaw,
@@ -342,6 +382,15 @@ export async function getBuilderDashboard(req, res) {
       }),
       prisma.investment.aggregate({
         where: { project: { builderId } },
+        _sum: { investedAmount: true },
+      }),
+      prisma.investment.aggregate({
+        where: {
+          project: {
+            builderId,
+            projectStatus: { in: ['FUNDED', 'COMPLETED'] },
+          },
+        },
         _sum: { investedAmount: true },
       }),
       prisma.investment.findMany({
@@ -412,6 +461,7 @@ export async function getBuilderDashboard(req, res) {
     });
 
     const fundsRaised = fundsAgg?._sum?.investedAmount ?? 0;
+    const walletBalance = releasedFundsAgg?._sum?.investedAmount ?? 0;
 
     const recentProjects = recentProjectsRaw.map((project) => {
       const totalInvested = (project.investments || []).reduce((sum, inv) => {
@@ -442,6 +492,7 @@ export async function getBuilderDashboard(req, res) {
           total_projects: totalProjects,
           total_investors: investorDistinct.length,
           funds_raised: fundsRaised?.toString?.() ?? '0',
+          wallet_balance: walletBalance?.toString?.() ?? '0',
           active_projects: activeProjects,
         },
         project_status: [

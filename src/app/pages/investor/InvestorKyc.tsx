@@ -66,6 +66,18 @@ const RISK_APPETITE_LABELS: Record<string, string> = {
   high: "High",
 };
 
+function fileLabelFromPath(path?: string): string {
+  if (!path) return "";
+  const clean = path.split("?")[0];
+  return clean.split(/[\\/]/).filter(Boolean).pop() || "Previously uploaded";
+}
+
+function uploadUrl(path?: string): string {
+  if (!path) return "";
+  if (/^(data:|blob:|https?:\/\/|\/api\/uploads\/)/.test(path)) return path;
+  return `/api/uploads/${path.replace(/^\/+/, "")}`;
+}
+
 export default function InvestorKyc() {
   const navigate = useNavigate();
   const STORAGE_KEY = "investor_kyc_draft_v1";
@@ -151,11 +163,11 @@ export default function InvestorKyc() {
     if (!kycData.gender) nextErrors.gender = "Please select gender";
     if (!kycData.pan.trim()) nextErrors.pan = "PAN is required";
     else if (!PAN_REGEX.test(kycData.pan.replace(/\s/g, ""))) nextErrors.pan = "Invalid PAN format (e.g. ABCDE1234F)";
-    if (!documentFiles.panCardFile) nextErrors.panCardFile = "PAN card upload is required";
+    if (!documentFiles.panCardFile && !kycData.panCardFile) nextErrors.panCardFile = "PAN card upload is required";
     const aadhaarDigits = kycData.aadhaar.replace(/\s/g, "");
     if (!aadhaarDigits) nextErrors.aadhaar = "Aadhaar number is required";
     else if (!AADHAAR_REGEX.test(aadhaarDigits)) nextErrors.aadhaar = "Aadhaar must be 12 digits";
-    if (!documentFiles.aadhaarFile) nextErrors.aadhaarFile = "Aadhaar upload is required";
+    if (!documentFiles.aadhaarFile && !kycData.aadhaarFile) nextErrors.aadhaarFile = "Aadhaar upload is required";
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   };
@@ -183,7 +195,7 @@ export default function InvestorKyc() {
     if (!kycData.ifscCode.trim()) nextErrors.ifscCode = "IFSC code is required";
     else if (!IFSC_REGEX.test(kycData.ifscCode.replace(/\s/g, ""))) nextErrors.ifscCode = "Invalid IFSC (e.g. SBIN0001234)";
     if (!kycData.accountType) nextErrors.accountType = "Please select account type";
-    if (!documentFiles.bankProofFile) nextErrors.bankProofFile = "Bank proof upload is required";
+    if (!documentFiles.bankProofFile && !kycData.bankProofFile) nextErrors.bankProofFile = "Bank proof upload is required";
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   };
@@ -409,6 +421,73 @@ export default function InvestorKyc() {
         const data = await res.json().catch(() => ({}));
         const user = data?.data || {};
         applyIdentity(user.fullName, user.email, user.mobileNumber || user.mobile);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if (!token) return;
+
+    fetch("/api/investor/profile", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(async (res) => {
+        if (!res.ok) return;
+        const data = await res.json().catch(() => ({}));
+        const payload = data?.data;
+        if (!payload) return;
+
+        const user = payload.user || {};
+        const profile = payload.profile || {};
+        const bankDetails = payload.bankDetails || {};
+        const kycDetails = payload.kycDetails || {};
+        const kycImages = payload.kycImages || {};
+        const sameAddress =
+          !!profile.resAddressLine1 &&
+          profile.resAddressLine1 === profile.permAddressLine1 &&
+          (profile.resAddressLine2 || "") === (profile.permAddressLine2 || "") &&
+          (profile.city || "") === (profile.permCity || "") &&
+          (profile.state || "") === (profile.permState || "") &&
+          (profile.zipCode || "") === (profile.permPincode || "");
+
+        if (sameAddress) setSameAsPermanent(true);
+
+        setKycData((current) => ({
+          ...current,
+          fullName: current.fullName || user.fullName || "",
+          email: current.email || user.email || "",
+          mobile: current.mobile || user.mobileNumber || "",
+          dateOfBirth: current.dateOfBirth || profile.dateOfBirth || "",
+          gender: current.gender || profile.gender || "",
+          pan: current.pan || profile.panNumber || "",
+          aadhaar: current.aadhaar || String(profile.aadhaarNumber || "").replace(/(\d{4})/g, "$1 ").trim(),
+          panCardFile: current.panCardFile || fileLabelFromPath(kycImages.panCardImage),
+          aadhaarFile: current.aadhaarFile || fileLabelFromPath(kycImages.aadhaarImage),
+          resAddressLine1: current.resAddressLine1 || profile.resAddressLine1 || profile.address || "",
+          resAddressLine2: current.resAddressLine2 || profile.resAddressLine2 || "",
+          resCity: current.resCity || profile.city || "",
+          resState: current.resState || profile.state || "",
+          resPincode: current.resPincode || profile.zipCode || "",
+          permAddressLine1: current.permAddressLine1 || profile.permAddressLine1 || profile.resAddressLine1 || profile.address || "",
+          permAddressLine2: current.permAddressLine2 || profile.permAddressLine2 || profile.resAddressLine2 || "",
+          permCity: current.permCity || profile.permCity || profile.city || "",
+          permState: current.permState || profile.permState || profile.state || "",
+          permPincode: current.permPincode || profile.permPincode || profile.zipCode || "",
+          accountHolderName: current.accountHolderName || bankDetails.accountHolderName || "",
+          bankName: current.bankName || bankDetails.bankName || "",
+          accountNumber: current.accountNumber || bankDetails.accountNumber || "",
+          confirmAccountNumber: current.confirmAccountNumber || current.accountNumber || bankDetails.accountNumber || "",
+          ifscCode: current.ifscCode || bankDetails.routingNumber || bankDetails.swiftCode || "",
+          accountType: current.accountType || bankDetails.accountType || "",
+          upiId: current.upiId || bankDetails.upiId || "",
+          bankProofFile: current.bankProofFile || fileLabelFromPath(kycImages.bankProofImage),
+          annualIncome: current.annualIncome || kycDetails.annualIncome || "",
+          occupation: current.occupation || kycDetails.occupation || "",
+          sourceOfFunds: current.sourceOfFunds.length ? current.sourceOfFunds : kycDetails.sourceOfFunds || [],
+          riskAppetite: current.riskAppetite || kycDetails.riskAppetite || "",
+          selfieImage: current.selfieImage || uploadUrl(kycImages.selfieImage),
+        }));
       })
       .catch(() => {});
   }, []);

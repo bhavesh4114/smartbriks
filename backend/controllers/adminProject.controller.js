@@ -23,6 +23,42 @@ function serializeProjectForAdmin(p) {
   };
 }
 
+function serializeProjectDetailsForAdmin(p) {
+  const row = serializeProjectForAdmin(p);
+  return {
+    ...row,
+    description: p.description,
+    location: p.location,
+    totalShares: p.totalShares,
+    pricePerShare: p.pricePerShare?.toString?.() ?? p.pricePerShare,
+    minInvestment: p.minInvestment?.toString?.() ?? p.minInvestment,
+    expectedROI: p.expectedROI?.toString?.() ?? p.expectedROI,
+    projectDurationMonths: p.projectDurationMonths,
+    keyFeatures: p.keyFeatures,
+    startDate: p.startDate,
+    endDate: p.endDate,
+    builderDetails: p.builder
+      ? {
+          id: p.builder.id,
+          companyName: p.builder.companyName,
+          email: p.builder.email,
+          mobileNumber: p.builder.mobileNumber,
+        }
+      : null,
+    images: Array.isArray(p.images) ? p.images.map((img) => img.imageUrl) : [],
+    investments: Array.isArray(p.investments)
+      ? p.investments.map((inv) => ({
+          id: inv.id,
+          amount: inv.investedAmount?.toString?.() ?? inv.investedAmount,
+          sharesPurchased: inv.sharesPurchased,
+          status: inv.investmentStatus,
+          createdAt: inv.createdAt,
+          investor: inv.user?.fullName ?? 'Investor',
+        }))
+      : [],
+  };
+}
+
 /**
  * GET /api/admin/projects
  */
@@ -57,6 +93,56 @@ export async function listAdminProjects(req, res) {
   } catch (err) {
     console.error('listAdminProjects:', err);
     return res.status(500).json({ success: false, message: 'Failed to fetch projects.' });
+  }
+}
+
+/**
+ * GET /api/admin/projects/:id
+ */
+export async function getAdminProjectDetails(req, res) {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid project id.' });
+    }
+
+    const project = await prisma.project.findUnique({
+      where: { id },
+      include: {
+        builder: {
+          select: {
+            id: true,
+            companyName: true,
+            email: true,
+            mobileNumber: true,
+          },
+        },
+        images: { select: { imageUrl: true } },
+        investments: {
+          include: {
+            user: { select: { fullName: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
+
+    if (!project) {
+      return res.status(404).json({ success: false, message: 'Project not found.' });
+    }
+
+    const sumInvested = project.investments.reduce(
+      (acc, i) => acc + toNum(i.investedAmount?.toString?.() ?? i.investedAmount),
+      0
+    );
+
+    return res.json({
+      success: true,
+      data: serializeProjectDetailsForAdmin({ ...project, _sumInvested: sumInvested }),
+    });
+  } catch (err) {
+    console.error('getAdminProjectDetails:', err);
+    return res.status(500).json({ success: false, message: 'Failed to fetch project details.' });
   }
 }
 

@@ -34,6 +34,7 @@ type BuilderDashboardData = {
     total_projects: number;
     total_investors: number;
     funds_raised: number | string;
+    wallet_balance: number | string;
     active_projects: number;
   };
   project_status: { name: string; value: number }[];
@@ -285,7 +286,7 @@ export default function BuilderDashboard() {
                 ? "Locked until KYC approval"
                 : dashboardLoading
                 ? "Loading..."
-                : formatINR(Number(stats?.funds_raised ?? 0))
+                : formatINR(Number(stats?.wallet_balance ?? 0))
             }
             icon={DollarSign}
             iconBg="bg-orange-50"

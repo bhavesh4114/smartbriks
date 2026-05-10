@@ -1,7 +1,15 @@
 ﻿import { BuilderLayout } from "../../components/layout/BuilderLayout";
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router";
-import { Upload, IndianRupee } from "lucide-react";
+import { Upload, IndianRupee, CheckCircle2 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../../components/ui/dialog";
 
 type SubmitStatus = "DRAFT" | "PENDING_APPROVAL";
 
@@ -21,6 +29,8 @@ export default function AddNewProject() {
   const [projectImages, setProjectImages] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [successDialogOpen, setSuccessDialogOpen] = useState(false);
+  const [successDialogText, setSuccessDialogText] = useState("");
 
   const submitProject = async (status: SubmitStatus) => {
     const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
@@ -60,10 +70,10 @@ export default function AddNewProject() {
         setMessage({ type: "error", text: data?.message || "Failed to save project." });
         return;
       }
-      setMessage({
-        type: "success",
-        text: status === "DRAFT" ? "Project saved as draft." : "Project submitted for approval.",
-      });
+      const successText = status === "DRAFT" ? "Project saved as draft." : "Project submitted for approval.";
+      setMessage(null);
+      setSuccessDialogText(successText);
+      setSuccessDialogOpen(true);
       if (status === "PENDING_APPROVAL") {
         setFormData({
           projectName: "",
@@ -104,8 +114,8 @@ export default function AddNewProject() {
           <p className="mt-2 text-[#6B7280]">
             Fill in the details to list your project for investment
           </p>
-          {message && (
-            <p className={`mt-3 text-sm ${message.type === "success" ? "text-green-600" : "text-red-600"}`}>
+          {message?.type === "error" && (
+            <p className="mt-3 text-sm text-red-600">
               {message.text}
             </p>
           )}
@@ -299,6 +309,39 @@ export default function AddNewProject() {
             </button>
           </div>
         </form>
+        <Dialog open={successDialogOpen} onOpenChange={setSuccessDialogOpen}>
+          <DialogContent className="w-[calc(100vw-1rem)] rounded-2xl border-gray-200 bg-white sm:w-full sm:max-w-md">
+            <div className="flex flex-col items-center px-2 py-4 text-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100">
+                <CheckCircle2 className="h-9 w-9 text-emerald-600" />
+              </div>
+              <DialogHeader className="mt-5 space-y-2 text-center">
+                <DialogTitle className="text-2xl font-semibold text-gray-900">
+                  Project Added
+                </DialogTitle>
+                <DialogDescription className="text-gray-600">
+                  {successDialogText || "Project submitted successfully."}
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="mt-6 flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-center">
+                <button
+                  type="button"
+                  className="rounded-xl border border-gray-200 px-5 py-2.5 font-medium text-gray-700 hover:bg-slate-50"
+                  onClick={() => setSuccessDialogOpen(false)}
+                >
+                  Add Another
+                </button>
+                <button
+                  type="button"
+                  className="rounded-xl bg-blue-600 px-5 py-2.5 font-semibold text-white hover:bg-blue-700"
+                  onClick={() => navigate("/builder/projects")}
+                >
+                  View Projects
+                </button>
+              </DialogFooter>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </BuilderLayout>
   );

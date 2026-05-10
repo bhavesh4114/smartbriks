@@ -58,6 +58,22 @@ export async function submitInvestorKyc(req, res) {
       },
       select: { id: true },
     });
+    const [existingProfile, existingDocs] = await Promise.all([
+      prisma.investorProfile.findUnique({
+        where: { userId: investorId },
+        select: {
+          panCardImage: true,
+          aadhaarImage: true,
+          bankProofImage: true,
+          selfieImage: true,
+        },
+      }),
+      prisma.kYC.findMany({
+        where: { userId: investorId },
+        orderBy: { createdAt: 'desc' },
+        select: { documentType: true, documentImage: true },
+      }),
+    ]);
 
     const kycDocs = [];
     const kycDocImages = {
@@ -99,6 +115,43 @@ export async function submitInvestorKyc(req, res) {
         status: 'PENDING',
       });
     }
+
+    const latestExistingImage = (docType) =>
+      existingDocs.find((doc) => doc.documentType === docType && doc.documentImage)?.documentImage || null;
+    const hasDocType = (docType) => kycDocs.some((doc) => doc.documentType === docType);
+    const addExistingDocIfMissing = (docType, docNumber, image) => {
+      if (!image || hasDocType(docType)) return;
+      kycDocs.push({
+        userId: investorId,
+        documentType: docType,
+        documentNumber: docNumber || 'PENDING',
+        documentImage: image,
+        status: 'PENDING',
+      });
+    };
+
+    addExistingDocIfMissing(
+      'INVESTOR_PAN_CARD',
+      body.pan?.trim()?.toUpperCase() || documentNumber,
+      existingProfile?.panCardImage || latestExistingImage('INVESTOR_PAN_CARD')
+    );
+    addExistingDocIfMissing(
+      'INVESTOR_AADHAAR_CARD',
+      body.aadhaar?.trim() || 'PENDING',
+      existingProfile?.aadhaarImage || latestExistingImage('INVESTOR_AADHAAR_CARD')
+    );
+    addExistingDocIfMissing(
+      'BANK_PROOF',
+      body.accountNumber?.trim() || 'PENDING',
+      existingProfile?.bankProofImage || latestExistingImage('BANK_PROOF')
+    );
+    addExistingDocIfMissing(
+      'INVESTOR_SELFIE',
+      body.pan?.trim()?.toUpperCase() || documentNumber,
+      existingProfile?.selfieImage ||
+        latestExistingImage('INVESTOR_SELFIE') ||
+        latestExistingImage('KYC_SUBMISSION')
+    );
 
     if (!kycDocs.length) {
       return res.status(400).json({
@@ -212,16 +265,6 @@ export async function submitInvestorKyc(req, res) {
         where: { id: investorId },
         data: userUpdateData,
       });
-      const existingProfile = await tx.investorProfile.findUnique({
-        where: { userId: investorId },
-        select: {
-          panCardImage: true,
-          aadhaarImage: true,
-          bankProofImage: true,
-          selfieImage: true,
-        },
-      });
-
       const allDocs = await tx.kYC.findMany({
         where: { userId: investorId },
         orderBy: { createdAt: 'desc' },

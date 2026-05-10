@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/ca
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
 import { Progress } from "../../components/ui/progress";
-import { MapPin, Clock, TrendingUp, Building2, IndianRupee } from "lucide-react";
+import { MapPin, Clock, TrendingUp, Building2, IndianRupee, CheckCircle2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { isKycApproved } from "../../config/kyc";
@@ -102,6 +102,11 @@ export default function ProjectDetails() {
   const routeProjectId = params.projectId || params.id;
 
   const [showInvestDialog, setShowInvestDialog] = useState(false);
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [successfulInvestment, setSuccessfulInvestment] = useState<{
+    amount: number;
+    projectName: string;
+  } | null>(null);
   const [investmentAmount, setInvestmentAmount] = useState("");
   const [projectDetails, setProjectDetails] = useState<ProjectDetailsData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -247,10 +252,14 @@ export default function ProjectDetails() {
           return;
         }
 
-        setPaymentMessage("Investment successful.");
+        setSuccessfulInvestment({
+          amount,
+          projectName: projectDetails.project_name,
+        });
+        setPaymentMessage("");
         setShowInvestDialog(false);
+        setShowSuccessDialog(true);
         setInvestmentAmount("");
-        navigate("/investor/investments");
       } catch {
         setPaymentMessage("Unable to start investment. Please try again.");
       } finally {
@@ -595,6 +604,46 @@ export default function ProjectDetails() {
                         {isPaying ? "Processing..." : "Confirm Investment"}
                       </Button>
                     </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+                <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
+                  <DialogContent className="w-[calc(100vw-1rem)] bg-white border-gray-200 rounded-2xl sm:w-full sm:max-w-md">
+                    <div className="flex flex-col items-center px-2 py-4 text-center">
+                      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100">
+                        <CheckCircle2 className="h-9 w-9 text-emerald-600" />
+                      </div>
+                      <DialogHeader className="mt-5 space-y-2 text-center">
+                        <DialogTitle className="text-2xl font-semibold text-gray-900">
+                          Congratulations!
+                        </DialogTitle>
+                        <DialogDescription className="text-gray-600">
+                          Your investment in {successfulInvestment?.projectName || "this project"} has been confirmed.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="mt-5 w-full rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm">
+                        <p className="text-gray-500">Investment Amount</p>
+                        <p className="mt-1 text-xl font-semibold text-emerald-700">
+                          {formatINR(successfulInvestment?.amount ?? 0)}
+                        </p>
+                      </div>
+                      <DialogFooter className="mt-6 flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-center">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="border-gray-200 text-gray-700 hover:bg-slate-50"
+                          onClick={() => setShowSuccessDialog(false)}
+                        >
+                          Stay Here
+                        </Button>
+                        <Button
+                          type="button"
+                          className="bg-blue-600 text-white hover:bg-blue-700"
+                          onClick={() => navigate("/investor/investments")}
+                        >
+                          View My Investments
+                        </Button>
+                      </DialogFooter>
+                    </div>
                   </DialogContent>
                 </Dialog>
               </CardContent>
