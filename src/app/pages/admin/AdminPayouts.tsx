@@ -20,14 +20,28 @@ type PayoutRow = {
   status: "Paid" | "Pending";
   builderEmail?: string;
   builderMobile?: string;
+  projectStatus?: string;
+  constructionProgress?: number;
   requiredAmount?: number;
   raisedAmount?: number;
   roiPercent?: number;
   roiAmount?: number;
+  totalProfitAmount?: number;
+  investorProfitAmount?: number;
+  builderProfitAmount?: number;
+  platformProfitAmount?: number;
   totalInvestorReturn?: number;
   builderPayoutAmount?: number;
+  adminProfitAmount?: number;
   netAfterRoiReserve?: number;
   progress?: number;
+  investorReturns?: {
+    investorId: number;
+    investorName: string;
+    investedAmount: number;
+    profitAmount: number;
+    payoutAmount: number;
+  }[];
 };
 
 export default function AdminPayouts() {
@@ -64,6 +78,12 @@ export default function AdminPayouts() {
           return;
         }
         setPayouts(Array.isArray(data.data) ? data.data : []);
+        const firstCompletedRequest = Array.isArray(data.data)
+          ? data.data.find((item: PayoutRow) => item.type === "REQUEST" && item.status === "Pending")
+          : null;
+        if (firstCompletedRequest) {
+          setSelectedRequest(firstCompletedRequest);
+        }
       } catch {
         setError("Network error while loading payouts.");
         setPayouts([]);
@@ -132,7 +152,7 @@ export default function AdminPayouts() {
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-semibold">Payment Approve</h1>
-          <p className="text-gray-600">Monitor payout transactions and approval requests</p>
+          <p className="text-gray-600">Review completed projects and transfer settlement funds</p>
           {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
           {success && <p className="mt-2 text-sm text-green-600">{success}</p>}
         </div>
@@ -147,9 +167,9 @@ export default function AdminPayouts() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Project</TableHead>
-                    <TableHead>Investor</TableHead>
+                    <TableHead>Builder</TableHead>
                     <TableHead>Raised</TableHead>
-                    <TableHead>ROI</TableHead>
+                    <TableHead>Investor Return</TableHead>
                     <TableHead>Builder Payout</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Status</TableHead>
@@ -165,7 +185,12 @@ export default function AdminPayouts() {
                         <TableCell className="font-semibold text-green-600">
                           {formatINR(payout.raisedAmount ?? payout.amount)}
                         </TableCell>
-                        <TableCell>{payout.roiPercent ?? 0}% ({formatINR(payout.roiAmount ?? 0)})</TableCell>
+                        <TableCell>
+                          {formatINR(payout.totalInvestorReturn ?? payout.amount)}
+                          <span className="ml-1 text-xs text-gray-500">
+                            (Principal + 70% profit)
+                          </span>
+                        </TableCell>
                         <TableCell className="font-semibold">{formatINR(payout.builderPayoutAmount ?? payout.amount)}</TableCell>
                         <TableCell>{toShortDate(payout.date)}</TableCell>
                         <TableCell>
@@ -176,7 +201,7 @@ export default function AdminPayouts() {
                         <TableCell>
                           {payout.status === "Pending" && payout.type === "REQUEST" ? (
                             <div className="flex flex-wrap gap-2">
-                              <Button size="sm" variant="outline" onClick={() => setSelectedRequest(payout)}>Details</Button>
+                              <Button size="sm" variant="outline" onClick={() => setSelectedRequest(payout)}>Calculation</Button>
                               <Button
                                 size="sm"
                                 disabled={busyId === payout.id}
@@ -186,7 +211,7 @@ export default function AdminPayouts() {
                                   setConfirmAction("approve");
                                 }}
                               >
-                                Approve
+                                Transfer
                               </Button>
                               <Button
                                 size="sm"
@@ -228,7 +253,9 @@ export default function AdminPayouts() {
           <DialogContent className="bg-white sm:max-w-2xl">
             <DialogHeader>
               <DialogTitle>{selectedRequest?.project || "Payout Details"}</DialogTitle>
-              <DialogDescription>Funding and ROI calculation before payout approval.</DialogDescription>
+              <DialogDescription>
+                Project progress 100% thay gayi che. Fund transfer karta pehla calculation verify karo.
+              </DialogDescription>
             </DialogHeader>
             {selectedRequest && (
               <div className="grid gap-3 text-sm md:grid-cols-2">
@@ -239,29 +266,61 @@ export default function AdminPayouts() {
                 </div>
                 <div className="rounded-lg border p-3">
                   <p className="text-gray-500">Funding Progress</p>
-                  <p className="font-medium">{(selectedRequest.progress ?? 0).toFixed(0)}%</p>
+                  <p className="font-medium">Funding {(selectedRequest.progress ?? 0).toFixed(0)}% / Work {selectedRequest.constructionProgress ?? 100}%</p>
                   <p className="mt-1">{formatINR(selectedRequest.raisedAmount ?? 0)} / {formatINR(selectedRequest.requiredAmount ?? 0)}</p>
                 </div>
                 <div className="rounded-lg border p-3">
                   <p className="text-gray-500">Expected ROI</p>
                   <p className="font-medium">{selectedRequest.roiPercent ?? 0}%</p>
-                  <p className="mt-1">ROI Amount: {formatINR(selectedRequest.roiAmount ?? 0)}</p>
+                  <p className="mt-1">Total Profit: {formatINR(selectedRequest.totalProfitAmount ?? selectedRequest.roiAmount ?? 0)}</p>
                 </div>
                 <div className="rounded-lg border p-3">
-                  <p className="text-gray-500">Builder Payout</p>
-                  <p className="font-medium text-green-600">{formatINR(selectedRequest.builderPayoutAmount ?? 0)}</p>
-                  <p className="mt-1">Net after ROI reserve: {formatINR(selectedRequest.netAfterRoiReserve ?? 0)}</p>
+                  <p className="text-gray-500">Builder Profit</p>
+                  <p className="font-medium text-green-600">{formatINR(selectedRequest.builderProfitAmount ?? selectedRequest.builderPayoutAmount ?? 0)}</p>
+                  <p className="mt-1">25% of total profit</p>
                 </div>
                 <div className="rounded-lg border p-3 md:col-span-2">
-                  <p className="text-gray-500">Investor Return Estimate</p>
+                  <p className="text-gray-500">Total Investor Wallet Credit</p>
                   <p className="font-medium">{formatINR(selectedRequest.totalInvestorReturn ?? 0)}</p>
-                  <p className="mt-1 text-gray-600">Raised amount + expected ROI amount</p>
+                  <p className="mt-1 text-gray-600">
+                    Principal {formatINR(selectedRequest.raisedAmount ?? 0)} + investor profit {formatINR(selectedRequest.investorProfitAmount ?? 0)} (70%)
+                  </p>
+                </div>
+                <div className="rounded-lg border p-3 md:col-span-2">
+                  <p className="text-gray-500">Admin / Platform Profit</p>
+                  <p className="font-medium">{formatINR(selectedRequest.platformProfitAmount ?? selectedRequest.adminProfitAmount ?? 0)}</p>
+                  <p className="mt-1 text-gray-600">5% of total profit</p>
+                </div>
+                <div className="rounded-lg border p-3 md:col-span-2">
+                  <p className="text-gray-500">Investor-wise Wallet Transfer</p>
+                  <div className="mt-2 max-h-56 overflow-auto rounded-lg border border-gray-100">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-50 text-gray-500">
+                        <tr>
+                          <th className="px-3 py-2 font-medium">Investor</th>
+                          <th className="px-3 py-2 font-medium">Invested</th>
+                          <th className="px-3 py-2 font-medium">Profit</th>
+                          <th className="px-3 py-2 font-medium">Wallet Credit</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(selectedRequest.investorReturns ?? []).map((row) => (
+                          <tr key={row.investorId} className="border-t border-gray-100">
+                            <td className="px-3 py-2">{row.investorName}</td>
+                            <td className="px-3 py-2">{formatINR(row.investedAmount)}</td>
+                            <td className="px-3 py-2 text-green-700">{formatINR(row.profitAmount)}</td>
+                            <td className="px-3 py-2 font-medium">{formatINR(row.payoutAmount)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             )}
             <DialogFooter>
               <Button variant="outline" onClick={() => setSelectedRequest(null)}>Close</Button>
-              <Button className="bg-green-600 text-white hover:bg-green-700" onClick={() => setConfirmAction("approve")}>Approve</Button>
+              <Button className="bg-green-600 text-white hover:bg-green-700" onClick={() => setConfirmAction("approve")}>Transfer Funds</Button>
               <Button variant="destructive" onClick={() => setConfirmAction("deny")}>Deny</Button>
             </DialogFooter>
           </DialogContent>
@@ -277,11 +336,11 @@ export default function AdminPayouts() {
         >
           <DialogContent className="bg-white sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>{confirmAction === "approve" ? "Approve Payout?" : "Deny Payout?"}</DialogTitle>
+              <DialogTitle>{confirmAction === "approve" ? "Transfer Settlement Funds?" : "Deny Settlement?"}</DialogTitle>
               <DialogDescription>
                 {confirmAction === "approve"
-                  ? `${selectedRequest?.project || "Project"} payout approve karvu chhe? Builder payout ${formatINR(selectedRequest?.builderPayoutAmount ?? 0)}.`
-                  : `${selectedRequest?.project || "Project"} payout deny karvu chhe?`}
+                  ? `${selectedRequest?.project || "Project"} complete thay gayu che. Investor wallets ma principal + 70% profit ${formatINR(selectedRequest?.totalInvestorReturn ?? 0)} credit thase, builder ne 25% profit ${formatINR(selectedRequest?.builderPayoutAmount ?? 0)} release thase, ane platform/admin profit ${formatINR(selectedRequest?.adminProfitAmount ?? 0)} record thase.`
+                  : `${selectedRequest?.project || "Project"} settlement deny karvu chhe?`}
               </DialogDescription>
             </DialogHeader>
             {selectedRequest && (
@@ -292,10 +351,14 @@ export default function AdminPayouts() {
                   <p className="text-gray-500">Raised</p>
                   <p className="text-right font-medium text-green-700">{formatINR(selectedRequest.raisedAmount ?? 0)}</p>
                   <p className="text-gray-500">ROI</p>
-                  <p className="text-right font-medium">{selectedRequest.roiPercent ?? 0}% ({formatINR(selectedRequest.roiAmount ?? 0)})</p>
-                  <p className="text-gray-500">Builder Payout</p>
-                  <p className="text-right font-semibold">{formatINR(selectedRequest.builderPayoutAmount ?? 0)}</p>
-                  <p className="text-gray-500">Investor Return Estimate</p>
+                  <p className="text-right font-medium">{selectedRequest.roiPercent ?? 0}% ({formatINR(selectedRequest.totalProfitAmount ?? selectedRequest.roiAmount ?? 0)})</p>
+                  <p className="text-gray-500">Investor Profit 70%</p>
+                  <p className="text-right font-medium">{formatINR(selectedRequest.investorProfitAmount ?? 0)}</p>
+                  <p className="text-gray-500">Builder Profit 25%</p>
+                  <p className="text-right font-semibold">{formatINR(selectedRequest.builderProfitAmount ?? selectedRequest.builderPayoutAmount ?? 0)}</p>
+                  <p className="text-gray-500">Platform Profit 5%</p>
+                  <p className="text-right font-semibold">{formatINR(selectedRequest.platformProfitAmount ?? selectedRequest.adminProfitAmount ?? 0)}</p>
+                  <p className="text-gray-500">Investor Wallet Credit</p>
                   <p className="text-right font-medium">{formatINR(selectedRequest.totalInvestorReturn ?? 0)}</p>
                 </div>
               </div>
@@ -320,7 +383,7 @@ export default function AdminPayouts() {
                 disabled={!!selectedRequest && busyId === selectedRequest.id}
                 onClick={runAction}
               >
-                {confirmAction === "approve" ? "Confirm Approve" : "Confirm Deny"}
+                {confirmAction === "approve" ? "Confirm Transfer" : "Confirm Deny"}
               </Button>
             </DialogFooter>
           </DialogContent>

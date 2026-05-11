@@ -82,6 +82,7 @@ model User {
   userReturns UserReturn[]
   profile     InvestorProfile?
   wallet      Wallet?
+  notifications Notification[]
 
   @@map("users")
 }
@@ -206,8 +207,32 @@ model Builder {
   projects Project[]
   kyc      KYC[]
   payments Payment[]
+  notifications Notification[]
 
   @@map("builders")
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int?     @map("user_id")
+  builderId Int?     @map("builder_id")
+  role      UserRole?
+  type      String   @default("info")
+  title     String
+  message   String
+  read      Boolean  @default(false)
+  metadata  Json?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user    User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  builder Builder? @relation(fields: [builderId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([builderId])
+  @@index([role])
+  @@index([read])
+  @@map("notifications")
 }
 
 model Project {
@@ -226,6 +251,7 @@ model Project {
   keyFeatures    String?       @map("key_features")
   approvedAt     DateTime?     @map("approved_at")
   rejectionReason String?      @map("rejection_reason")
+  constructionProgress Int     @default(0) @map("construction_progress")
   startDate      DateTime?     @map("start_date")
   endDate        DateTime?     @map("end_date")
   createdAt      DateTime      @default(now()) @map("created_at")
@@ -236,10 +262,28 @@ model Project {
   returns     ReturnDistribution[]
   payments    Payment[]
   images      ProjectImage[]
+  timeline    ProjectTimeline[]
 
   @@index([builderId])
   @@index([projectStatus])
   @@map("projects")
+}
+
+model ProjectTimeline {
+  id          Int      @id @default(autoincrement())
+  projectId   Int      @map("project_id")
+  stage       String
+  status      String
+  progress    Int      @default(0)
+  description String
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, stage])
+  @@index([projectId])
+  @@map("project_timelines")
 }
 
 model ProjectImage {

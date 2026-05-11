@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import Razorpay from 'razorpay';
 import { Decimal } from '@prisma/client/runtime/library';
 import prisma from '../utils/prisma.js';
+import { createNotification, notifyAdmins } from '../utils/notifications.js';
 
 function toNumber(v) {
   const n = Number(v ?? 0);
@@ -363,6 +364,27 @@ export async function investFromWallet(req, res) {
         },
       });
 
+      await createNotification(tx, {
+        userId,
+        type: 'success',
+        title: 'Investment Confirmed',
+        message: `Your investment of ₹${actualAmount.toString()} in ${project.title} has been confirmed.`,
+        metadata: { event: 'BUY', projectId, investmentId: investment.id },
+      });
+      await createNotification(tx, {
+        builderId: project.builderId,
+        type: 'success',
+        title: 'New Investment Received',
+        message: `An investor bought shares worth ₹${actualAmount.toString()} in ${project.title}.`,
+        metadata: { event: 'BUY', projectId, investmentId: investment.id },
+      });
+      await notifyAdmins(tx, {
+        type: 'info',
+        title: 'New Investment',
+        message: `Investment of ₹${actualAmount.toString()} received for ${project.title}.`,
+        metadata: { event: 'BUY', projectId, investmentId: investment.id },
+      });
+
       const aggregate = await tx.investment.aggregate({
         where: { projectId, investmentStatus: 'ACTIVE' },
         _sum: { investedAmount: true },
@@ -377,6 +399,19 @@ export async function investFromWallet(req, res) {
             projectStatus: 'PENDING_APPROVAL',
             rejectionReason: null,
           },
+        });
+        await createNotification(tx, {
+          builderId: project.builderId,
+          type: 'success',
+          title: 'Funding Goal Reached',
+          message: `${project.title} is fully funded and sent for admin approval.`,
+          metadata: { event: 'FUNDING_FULL', projectId },
+        });
+        await notifyAdmins(tx, {
+          type: 'warning',
+          title: 'Funding Approval Pending',
+          message: `${project.title} is fully funded and ready for payout review.`,
+          metadata: { event: 'FUNDING_FULL', projectId },
         });
       }
 

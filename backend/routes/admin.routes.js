@@ -34,6 +34,12 @@ import {
   denyPayoutRequest,
 } from '../controllers/adminPayout.controller.js';
 import { listDocuments } from '../controllers/adminDocument.controller.js';
+import { getAdminDashboard } from '../controllers/adminDashboard.controller.js';
+import {
+  listAdminNotifications,
+  markNotificationsRead,
+  sendAdminNotification,
+} from '../controllers/notification.controller.js';
 
 const router = Router();
 
@@ -43,6 +49,11 @@ router.use(authenticate, adminOnly);
 router.get('/', (req, res) => {
   res.json({ success: true, message: 'Admin API. Add routes here.' });
 });
+
+router.get('/dashboard', getAdminDashboard);
+router.get('/notifications', listAdminNotifications);
+router.post('/notifications/read', markNotificationsRead);
+router.post('/notifications/send', sendAdminNotification);
 
 // Investor KYC management
 router.get('/kyc/pending', listPendingInvestorKyc);

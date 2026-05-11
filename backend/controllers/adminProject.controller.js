@@ -1,4 +1,5 @@
 import prisma from '../utils/prisma.js';
+import { createNotification, notifyAdmins } from '../utils/notifications.js';
 
 function toNum(v) {
   const n = Number(v ?? 0);
@@ -164,13 +165,28 @@ export async function approveProject(req, res) {
       return res.status(400).json({ success: false, message: 'Only pending projects can be approved.' });
     }
 
-    await prisma.project.update({
-      where: { id },
-      data: {
-        projectStatus: 'APPROVED',
-        approvedAt: new Date(),
-        rejectionReason: null,
-      },
+    await prisma.$transaction(async (tx) => {
+      const updated = await tx.project.update({
+        where: { id },
+        data: {
+          projectStatus: 'APPROVED',
+          approvedAt: new Date(),
+          rejectionReason: null,
+        },
+      });
+      await createNotification(tx, {
+        builderId: updated.builderId,
+        type: 'success',
+        title: 'Project Approved',
+        message: `${updated.title} has been approved by admin and is open for investment.`,
+        metadata: { event: 'PROJECT_APPROVED', projectId: updated.id },
+      });
+      await notifyAdmins(tx, {
+        type: 'success',
+        title: 'Project Approved',
+        message: `${updated.title} was approved successfully.`,
+        metadata: { event: 'PROJECT_APPROVED', projectId: updated.id },
+      });
     });
 
     return res.json({ success: true, message: 'Project approved.' });
@@ -203,13 +219,28 @@ export async function rejectProject(req, res) {
       return res.status(400).json({ success: false, message: 'Only pending projects can be rejected.' });
     }
 
-    await prisma.project.update({
-      where: { id },
-      data: {
-        projectStatus: 'REJECTED',
-        approvedAt: null,
-        rejectionReason: reason,
-      },
+    await prisma.$transaction(async (tx) => {
+      const updated = await tx.project.update({
+        where: { id },
+        data: {
+          projectStatus: 'REJECTED',
+          approvedAt: null,
+          rejectionReason: reason,
+        },
+      });
+      await createNotification(tx, {
+        builderId: updated.builderId,
+        type: 'warning',
+        title: 'Project Rejected',
+        message: `${updated.title} was rejected. Reason: ${reason}`,
+        metadata: { event: 'PROJECT_REJECTED', projectId: updated.id },
+      });
+      await notifyAdmins(tx, {
+        type: 'warning',
+        title: 'Project Rejected',
+        message: `${updated.title} was rejected.`,
+        metadata: { event: 'PROJECT_REJECTED', projectId: updated.id },
+      });
     });
 
     return res.json({ success: true, message: 'Project rejected.' });

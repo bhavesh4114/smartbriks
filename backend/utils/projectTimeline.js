@@ -1,27 +1,27 @@
 const defaultTimelineStages = [
   {
     stage: 'Foundation',
-    progress: 100,
-    status: 'completed',
-    description: 'Site preparation, footing work, and base slab have been completed.',
+    progress: 0,
+    status: 'pending',
+    description: 'Work update not added yet.',
   },
   {
     stage: 'Structure',
-    progress: 72,
-    status: 'in_progress',
-    description: 'Core structural work is progressing across the main towers.',
+    progress: 0,
+    status: 'pending',
+    description: 'Work update not added yet.',
   },
   {
     stage: 'Interiors',
-    progress: 28,
-    status: 'in_progress',
-    description: 'Sample units and internal utility routing are underway.',
+    progress: 0,
+    status: 'pending',
+    description: 'Work update not added yet.',
   },
   {
     stage: 'Handover',
     progress: 0,
     status: 'pending',
-    description: 'Final finishing, quality checks, and possession planning are pending.',
+    description: 'Work update not added yet.',
   },
 ];
 

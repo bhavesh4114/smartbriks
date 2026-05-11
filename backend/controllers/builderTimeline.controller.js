@@ -1,5 +1,6 @@
 import prisma from '../utils/prisma.js';
 import { buildProjectTimeline, calculateOverallTimelineProgress } from '../utils/projectTimeline.js';
+import { createNotification, notifyAdmins } from '../utils/notifications.js';
 
 const allowedStages = new Set(['Foundation', 'Structure', 'Interiors', 'Handover']);
 const allowedStatuses = new Set(['pending', 'in_progress', 'completed']);
@@ -12,9 +13,9 @@ function toNumber(value) {
 export async function updateProjectTimeline(req, res) {
   try {
     const builderId = req.auth.id;
-    const { projectId, stage, status, progress, description } = req.body ?? {};
+    const { stage, status, progress, description } = req.body ?? {};
 
-    const normalizedProjectId = Number.parseInt(projectId, 10);
+    const normalizedProjectId = Number.parseInt(req.params.projectId ?? req.body?.projectId, 10);
     let normalizedProgress = Math.max(0, Math.min(100, Math.round(toNumber(progress))));
     let normalizedStatus = status;
     const normalizedDescription = String(description ?? '').trim();
@@ -37,7 +38,7 @@ export async function updateProjectTimeline(req, res) {
 
     const project = await prisma.project.findFirst({
       where: { id: normalizedProjectId, builderId },
-      select: { id: true },
+      select: { id: true, title: true },
     });
     if (!project) {
       return res.status(404).json({ success: false, message: 'Project not found.' });
@@ -92,6 +93,22 @@ export async function updateProjectTimeline(req, res) {
           constructionProgress: true,
         },
       });
+
+      if (overallProgress === 100) {
+        await createNotification(tx, {
+          builderId,
+          type: 'success',
+          title: 'Project Work Completed',
+          message: `${project.title} progress is 100%. Settlement is ready for admin review.`,
+          metadata: { event: 'WORK_COMPLETED', projectId: normalizedProjectId },
+        });
+        await notifyAdmins(tx, {
+          type: 'warning',
+          title: 'Project 100% Completed',
+          message: `${project.title} has reached 100% construction progress. Please review settlement.`,
+          metadata: { event: 'WORK_COMPLETED', projectId: normalizedProjectId },
+        });
+      }
 
       return { timelineRow, allTimelineRows, updatedProject, overallProgress };
     });

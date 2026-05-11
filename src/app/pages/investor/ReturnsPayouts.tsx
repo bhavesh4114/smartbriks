@@ -22,6 +22,9 @@ type ApiPayout = {
   project?: string;
   project_title?: string;
   amount?: number | string;
+  investedAmount?: number | string;
+  profitAmount?: number | string;
+  roiPercent?: number | string;
   date?: string | Date;
   paidAt?: string | Date;
   dueDate?: string | Date;
@@ -39,12 +42,17 @@ type ApiStats = {
   total_pending?: number | string;
   total_returns?: number | string;
   total_payouts?: number | string;
+  total_profit?: number | string;
+  total_invested_returned?: number | string;
 };
 
 type PayoutRow = {
   id: string;
   projectName: string;
   amount: number;
+  investedAmount: number;
+  profitAmount: number;
+  roiPercent: number;
   date: string;
   status: "Paid" | "Pending";
   month: string;
@@ -83,6 +91,9 @@ function normalizePayout(item: ApiPayout, index: number): PayoutRow {
     id: String(item.id ?? `${item.transactionId ?? item.transaction_id ?? "payout"}-${index}`),
     projectName: item.projectName || item.project || item.project_title || "Untitled Project",
     amount: toNumber(item.amount),
+    investedAmount: toNumber(item.investedAmount),
+    profitAmount: toNumber(item.profitAmount),
+    roiPercent: toNumber(item.roiPercent),
     date: toShortDate(item.date || item.paidAt || item.dueDate),
     status: normalizeStatus(item.status),
     month: toMonthLabel(item.month || item.period || item.date || item.paidAt || item.dueDate),
@@ -204,15 +215,17 @@ export default function ReturnsPayouts() {
     return {
       totalPaid,
       totalPending,
-      totalReturns: totalPaid + totalPending,
-      monthlyBreakdown: Array.from(monthlyMap.values()),
-    };
+    totalReturns: totalPaid + totalPending,
+    totalProfit: payouts.reduce((sum, payout) => sum + payout.profitAmount, 0),
+    monthlyBreakdown: Array.from(monthlyMap.values()),
+  };
   }, [payouts]);
 
   const summary = {
     totalPaid: toNumber(stats?.total_paid ?? computedStats.totalPaid),
     totalPending: toNumber(stats?.total_pending ?? computedStats.totalPending),
     totalReturns: toNumber(stats?.total_returns ?? stats?.total_payouts ?? computedStats.totalReturns),
+    totalProfit: toNumber(stats?.total_profit ?? computedStats.totalProfit),
   };
 
   const handleReceiptDownload = (payout: PayoutRow) => {
@@ -254,9 +267,9 @@ export default function ReturnsPayouts() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-500">Pending Payouts</p>
+                  <p className="text-sm text-gray-500">Total Profit</p>
                   <p className="mt-2 text-3xl font-semibold text-amber-600">
-                    {loading ? "Loading..." : formatINR(summary.totalPending)}
+                    {loading ? "Loading..." : formatINR(summary.totalProfit)}
                   </p>
                 </div>
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-50">
@@ -334,6 +347,10 @@ export default function ReturnsPayouts() {
                       <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
                         <p className="text-gray-500">Amount</p>
                         <p className="text-right font-semibold text-gray-900">{formatINR(payout.amount)}</p>
+                        <p className="text-gray-500">Invested</p>
+                        <p className="text-right text-gray-900">{formatINR(payout.investedAmount)}</p>
+                        <p className="text-gray-500">Profit</p>
+                        <p className="text-right font-semibold text-green-700">{formatINR(payout.profitAmount)}</p>
                         <p className="text-gray-500">Date</p>
                         <p className="text-right text-gray-900">{payout.date}</p>
                         <p className="text-gray-500">Txn ID</p>
@@ -359,7 +376,10 @@ export default function ReturnsPayouts() {
                       <TableRow>
                         <TableHead className="text-gray-500">Project Name</TableHead>
                         <TableHead className="text-gray-500">Period</TableHead>
-                        <TableHead className="text-gray-500">Amount</TableHead>
+                        <TableHead className="text-gray-500">Invested</TableHead>
+                        <TableHead className="text-gray-500">Profit</TableHead>
+                        <TableHead className="text-gray-500">Total Paid</TableHead>
+                        <TableHead className="text-gray-500">ROI</TableHead>
                         <TableHead className="text-gray-500">Date</TableHead>
                         <TableHead className="text-gray-500">Transaction ID</TableHead>
                         <TableHead className="text-gray-500">Status</TableHead>
@@ -371,7 +391,10 @@ export default function ReturnsPayouts() {
                         <TableRow key={payout.id} className="border-gray-200">
                           <TableCell className="font-medium text-gray-900">{payout.projectName}</TableCell>
                           <TableCell className="text-gray-600">{payout.month}</TableCell>
+                          <TableCell className="text-gray-700">{formatINR(payout.investedAmount)}</TableCell>
+                          <TableCell className="font-semibold text-green-700">{formatINR(payout.profitAmount)}</TableCell>
                           <TableCell className="font-semibold text-gray-900">{formatINR(payout.amount)}</TableCell>
+                          <TableCell className="text-gray-600">{payout.roiPercent}%</TableCell>
                           <TableCell className="text-gray-600">{payout.date}</TableCell>
                           <TableCell className="font-mono text-sm text-gray-500">{payout.transactionId}</TableCell>
                           <TableCell>

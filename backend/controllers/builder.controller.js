@@ -1,4 +1,5 @@
 import prisma from '../utils/prisma.js';
+import { buildProjectTimeline } from '../utils/projectTimeline.js';
 
 /**
  * Get enriched builder profile (own)
@@ -208,6 +209,9 @@ export async function getProjectInvestments(req, res) {
     const project = await prisma.project.findFirst({
       where: { id: projectId, builderId },
       include: {
+        timeline: {
+          orderBy: { createdAt: 'asc' },
+        },
         investments: {
           include: {
             user: { // Prisma relation: investor details
@@ -233,6 +237,12 @@ export async function getProjectInvestments(req, res) {
     }, 0);
     const totalValue = Number(project.totalValue?.toString?.() ?? project.totalValue ?? 0);
     const progress = totalValue > 0 ? Math.min(100, (totalInvested / totalValue) * 100) : 0;
+    const timeline = buildProjectTimeline(project.timeline ?? []);
+    const activeTimelineItem =
+      timeline.find((item) => item.status === 'in_progress') ??
+      [...timeline].reverse().find((item) => item.status === 'completed') ??
+      timeline[0] ??
+      null;
 
     res.json({
       success: true,
@@ -245,6 +255,11 @@ export async function getProjectInvestments(req, res) {
           totalValue: project.totalValue,
           totalShares: project.totalShares,
           projectStatus: project.projectStatus,
+          constructionProgress: project.constructionProgress ?? 0,
+          timeline,
+          currentStage: activeTimelineItem?.stage ?? null,
+          currentStageStatus: activeTimelineItem?.status ?? null,
+          currentStageDescription: activeTimelineItem?.description ?? null,
           totalInvested: totalInvested?.toString?.() ?? totalInvested,
           investorCount: project.investments?.length ?? 0,
           progress,

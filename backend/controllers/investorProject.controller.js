@@ -1,4 +1,5 @@
 import prisma from '../utils/prisma.js';
+import { serializeProjectTimelineForInvestor } from '../utils/projectTimeline.js';
 
 function serializeProject(p) {
   const totalValue = Number(p.totalValue?.toString?.() ?? p.totalValue ?? 0);
@@ -32,32 +33,6 @@ function parseAmenities(keyFeatures) {
     .filter(Boolean);
 }
 
-function buildTimeline(progress) {
-  const pct = Math.max(0, Math.min(100, Number(progress || 0)));
-  return [
-    {
-      phase: 'Foundation',
-      status: pct >= 100 ? 'Completed' : pct >= 25 ? 'In Progress' : 'Pending',
-      progress: pct >= 100 ? 100 : Math.min(100, pct * 4),
-    },
-    {
-      phase: 'Structure',
-      status: pct >= 75 ? 'Completed' : pct >= 35 ? 'In Progress' : 'Pending',
-      progress: pct < 25 ? 0 : Math.min(100, (pct - 25) * 1.33),
-    },
-    {
-      phase: 'Interiors',
-      status: pct >= 95 ? 'Completed' : pct >= 55 ? 'In Progress' : 'Pending',
-      progress: pct < 50 ? 0 : Math.min(100, (pct - 50) * 2),
-    },
-    {
-      phase: 'Handover',
-      status: pct >= 100 ? 'Completed' : pct >= 80 ? 'In Progress' : 'Pending',
-      progress: pct < 75 ? 0 : Math.min(100, (pct - 75) * 4),
-    },
-  ];
-}
-
 function serializeProjectDetails(p) {
   const totalProjectCost = Number(p.totalValue?.toString?.() ?? p.totalValue ?? 0);
   const fundsRaised = Array.isArray(p.investments)
@@ -67,7 +42,7 @@ function serializeProjectDetails(p) {
     totalProjectCost > 0 ? Math.min(100, (fundsRaised / totalProjectCost) * 100) : 0;
 
   const amenities = parseAmenities(p.keyFeatures);
-  const timeline = buildTimeline(progressPercentage);
+  const timeline = serializeProjectTimelineForInvestor(p.timeline ?? []);
 
   return {
     id: p.id,
@@ -163,6 +138,9 @@ export async function getApprovedProjectDetailsForInvestor(req, res) {
           take: 10,
         },
         images: { select: { imageUrl: true } },
+        timeline: {
+          orderBy: { createdAt: 'asc' },
+        },
       },
     });
 

@@ -187,3 +187,103 @@ export async function getBuilderPayouts(req, res) {
     return res.status(500).json({ success: false, message: 'Failed to fetch payouts.' });
   }
 }
+
+/**
+ * List payouts for the logged-in investor
+ * GET /api/investor/returns/payouts
+ */
+export async function getInvestorPayouts(req, res) {
+  try {
+    const investorId = req.auth.id;
+
+    const returns = await prisma.userReturn.findMany({
+      where: { userId: investorId },
+      include: {
+        returnDistribution: {
+          include: {
+            project: {
+              select: {
+                id: true,
+                title: true,
+                expectedROI: true,
+                investments: {
+                  where: { userId: investorId },
+                  select: { investedAmount: true },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { creditedAt: 'desc' },
+    });
+
+    const walletTransactions = await prisma.walletTransaction.findMany({
+      where: {
+        wallet: { userId: investorId },
+        type: 'CREDIT',
+        status: 'SUCCESS',
+        externalRef: { startsWith: 'SETTLEMENT_' },
+      },
+      select: {
+        externalRef: true,
+        createdAt: true,
+        metadata: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const txByProject = new Map();
+    for (const tx of walletTransactions) {
+      const projectId = tx.metadata?.projectId;
+      if (projectId && !txByProject.has(projectId)) txByProject.set(projectId, tx);
+    }
+
+    const payouts = returns.map((ur) => {
+      const project = ur.returnDistribution?.project;
+      const investedAmount = Number(project?.investments?.[0]?.investedAmount?.toString?.() ?? project?.investments?.[0]?.investedAmount ?? 0);
+      const totalAmount = Number(ur.amount?.toString?.() ?? ur.amount ?? 0);
+      const tx = project?.id ? txByProject.get(project.id) : null;
+      const metadataProfit = Number(tx?.metadata?.profitAmount ?? NaN);
+      const profitAmount = Number.isFinite(metadataProfit) ? metadataProfit : Math.max(0, totalAmount - investedAmount);
+
+      return {
+        id: ur.id,
+        projectName: project?.title ?? 'Unknown Project',
+        project: project?.title ?? 'Unknown Project',
+        amount: totalAmount,
+        investedAmount,
+        profitAmount,
+        roiPercent: Number(project?.expectedROI?.toString?.() ?? project?.expectedROI ?? 0),
+        date: ur.creditedAt,
+        paidAt: ur.creditedAt,
+        period: ur.returnDistribution?.distributionDate ?? ur.creditedAt,
+        status: 'Paid',
+        transactionId: tx?.externalRef ?? `RETURN_${ur.id}`,
+        receiptUrl: null,
+      };
+    });
+
+    const totalPaid = payouts.reduce((sum, row) => sum + row.amount, 0);
+    const totalProfit = payouts.reduce((sum, row) => sum + row.profitAmount, 0);
+    const totalInvestedReturned = payouts.reduce((sum, row) => sum + row.investedAmount, 0);
+
+    return res.json({
+      success: true,
+      data: {
+        payouts,
+        stats: {
+          total_paid: totalPaid,
+          total_pending: 0,
+          total_profit: totalProfit,
+          total_returns: totalPaid,
+          total_payouts: totalPaid,
+          total_invested_returned: totalInvestedReturned,
+        },
+      },
+    });
+  } catch (err) {
+    console.error('getInvestorPayouts:', err);
+    return res.status(500).json({ success: false, message: 'Failed to fetch investor payouts.' });
+  }
+}

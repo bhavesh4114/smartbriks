@@ -23,6 +23,8 @@ import {
   verifyAddMoney,
   investFromWallet,
 } from '../controllers/wallet.controller.js';
+import { getInvestorPayouts } from '../controllers/return.controller.js';
+import { listInvestorNotifications, markNotificationsRead } from '../controllers/notification.controller.js';
 
 const router = Router();
 
@@ -41,6 +43,11 @@ router.post('/add-money/verify', authenticate, investorOnly, verifyAddMoney);
 router.post('/invest', authenticate, investorOnly, investFromWallet);
 router.get('/projects', authenticate, investorOnly, listApprovedProjectsForInvestor);
 router.get('/projects/:projectId', authenticate, investorOnly, getApprovedProjectDetailsForInvestor);
+router.get('/returns/payouts', authenticate, investorOnly, getInvestorPayouts);
+router.get('/payouts', authenticate, investorOnly, getInvestorPayouts);
+router.get('/returns', authenticate, investorOnly, getInvestorPayouts);
+router.get('/notifications', authenticate, investorOnly, listInvestorNotifications);
+router.post('/notifications/read', authenticate, investorOnly, markNotificationsRead);
 router.post('/create-order', authenticate, investorOnly, createInvestorOrder);
 router.post('/verify-payment', authenticate, investorOnly, verifyInvestorPayment);
 

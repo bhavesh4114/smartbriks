@@ -8,6 +8,8 @@ import {
   getProjectInvestments,
   getBuilderInvestors,
 } from '../controllers/builder.controller.js';
+import { updateProjectTimeline } from '../controllers/builderTimeline.controller.js';
+import { listBuilderNotifications, markNotificationsRead } from '../controllers/notification.controller.js';
 
 const router = Router();
 
@@ -17,6 +19,9 @@ router.get('/me', getMe);
 router.get('/dashboard', getBuilderDashboard);
 router.get('/projects', getMyProjects);
 router.get('/projects/:projectId/investments', getProjectInvestments);
+router.post('/projects/:projectId/timeline', updateProjectTimeline);
 router.get('/investors', getBuilderInvestors);
+router.get('/notifications', listBuilderNotifications);
+router.post('/notifications/read', markNotificationsRead);
 
 export default router;

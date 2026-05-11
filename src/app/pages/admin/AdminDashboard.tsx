@@ -1,8 +1,11 @@
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router";
 import { DashboardLayout } from "../../components/layout/DashboardLayout";
 import { adminMenuItems } from "../../config/menuItems";
 import { StatCard } from "../../components/shared/StatCard";
 import { Users, Building2, FolderKanban, Wallet } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { formatINR } from "../../utils/currency";
 import {
   LineChart,
   Line,
@@ -19,22 +22,83 @@ import {
   Legend,
 } from "recharts";
 
-const monthlyData = [
-  { month: "Jan", investments: 450000, payouts: 35000, projects: 5 },
-  { month: "Feb", investments: 520000, payouts: 42000, projects: 7 },
-  { month: "Mar", investments: 480000, payouts: 38000, projects: 6 },
-  { month: "Apr", investments: 650000, payouts: 52000, projects: 8 },
-  { month: "May", investments: 720000, payouts: 58000, projects: 9 },
-  { month: "Jun", investments: 800000, payouts: 65000, projects: 10 },
-];
+type AdminDashboardData = {
+  stats: {
+    totalInvestors: number;
+    totalBuilders: number;
+    totalAdmins: number;
+    totalProjects: number;
+    walletBalance: number | string;
+  };
+  monthly: { month: string; investments: number; payouts: number; projects: number }[];
+  userDistribution: { name: string; value: number; color: string }[];
+  recentInvestments: { investor: string; project: string; amount: number | string; time: string }[];
+  pendingApprovals: { type: string; name: string; item: string; time: string }[];
+};
 
-const userDistribution = [
-  { name: "Investors", value: 500, color: "#10b981" },
-  { name: "Builders", value: 50, color: "#f59e0b" },
-  { name: "Admins", value: 5, color: "#0f3460" },
-];
+const emptyDashboard: AdminDashboardData = {
+  stats: {
+    totalInvestors: 0,
+    totalBuilders: 0,
+    totalAdmins: 0,
+    totalProjects: 0,
+    walletBalance: 0,
+  },
+  monthly: [],
+  userDistribution: [
+    { name: "Investors", value: 0, color: "#10b981" },
+    { name: "Builders", value: 0, color: "#f59e0b" },
+    { name: "Admins", value: 0, color: "#0f3460" },
+  ],
+  recentInvestments: [],
+  pendingApprovals: [],
+};
 
 export default function AdminDashboard() {
+  const navigate = useNavigate();
+  const [dashboard, setDashboard] = useState<AdminDashboardData>(emptyDashboard);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if (!token) {
+      navigate("/login", { replace: true });
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+    fetch("/api/admin/dashboard", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (res.status === 401 || res.status === 403) {
+          navigate("/login", { replace: true });
+          return;
+        }
+        if (!res.ok || !data?.success || !data?.data) {
+          setError(data?.message || "Failed to load dashboard data.");
+          setDashboard(emptyDashboard);
+          return;
+        }
+        setDashboard(data.data as AdminDashboardData);
+      })
+      .catch(() => {
+        setError("Network error while loading dashboard data.");
+        setDashboard(emptyDashboard);
+      })
+      .finally(() => setLoading(false));
+  }, [navigate]);
+
+  const monthlyData = useMemo(() => dashboard.monthly, [dashboard.monthly]);
+  const userDistribution = useMemo(
+    () => (dashboard.userDistribution.length ? dashboard.userDistribution : emptyDashboard.userDistribution),
+    [dashboard.userDistribution]
+  );
+  const stats = dashboard.stats;
+
   return (
     <DashboardLayout
       sidebarItems={adminMenuItems}
@@ -43,48 +107,48 @@ export default function AdminDashboard() {
       logoText="RealEstate"
     >
       <div className="min-w-0 space-y-6 sm:space-y-8">
-        {/* Stats Grid - same style as investor/builder */}
+        {error && (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
         <div className="grid min-w-0 grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-4">
           <StatCard
             title="Total Investors"
-            value="500"
+            value={loading ? "Loading..." : String(stats.totalInvestors)}
             icon={Users}
             iconBg="bg-green-50"
             iconTextColor="text-[#16A34A]"
-            trend={{ value: "+25", isPositive: true }}
             className="bg-white border border-[#E5E7EB] rounded-2xl shadow-sm transition-shadow duration-200 lg:hover:shadow-md"
           />
           <StatCard
             title="Total Builders"
-            value="50"
+            value={loading ? "Loading..." : String(stats.totalBuilders)}
             icon={Building2}
             iconBg="bg-orange-50"
             iconTextColor="text-orange-600"
-            trend={{ value: "+5", isPositive: true }}
             className="bg-white border border-[#E5E7EB] rounded-2xl shadow-sm transition-shadow duration-200 lg:hover:shadow-md"
           />
           <StatCard
             title="Total Projects"
-            value="150"
+            value={loading ? "Loading..." : String(stats.totalProjects)}
             icon={FolderKanban}
             iconBg="bg-blue-50"
             iconTextColor="text-[#2563EB]"
-            trend={{ value: "+10", isPositive: true }}
             className="bg-white border border-[#E5E7EB] rounded-2xl shadow-sm transition-shadow duration-200 lg:hover:shadow-md"
           />
           <StatCard
             title="Wallet Balance"
-            value="Rs 1,20,00,000"
+            value={loading ? "Loading..." : formatINR(Number(stats.walletBalance ?? 0))}
             icon={Wallet}
             iconBg="bg-violet-50"
             iconTextColor="text-violet-600"
-            trend={{ value: "+8%", isPositive: true }}
             className="bg-white border border-[#E5E7EB] rounded-2xl shadow-sm transition-shadow duration-200 lg:hover:shadow-md"
           />
         </div>
 
         <div className="grid min-w-0 gap-4 sm:gap-6 lg:grid-cols-2">
-          {/* Monthly Investments & Payouts */}
           <Card className="bg-white border border-[#E5E7EB] rounded-2xl shadow-sm transition-shadow duration-200 lg:hover:shadow-md min-w-0 overflow-hidden">
             <CardHeader>
               <CardTitle className="text-[#111827] font-semibold">Monthly Investments & Payouts</CardTitle>
@@ -113,7 +177,6 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
 
-          {/* User Distribution */}
           <Card className="bg-white border border-[#E5E7EB] rounded-2xl shadow-sm transition-shadow duration-200 lg:hover:shadow-md min-h-0">
             <CardHeader>
               <CardTitle className="text-[#111827] font-semibold">User Distribution</CardTitle>
@@ -142,7 +205,6 @@ export default function AdminDashboard() {
           </Card>
         </div>
 
-        {/* Monthly Projects */}
         <Card className="bg-white border border-[#E5E7EB] rounded-2xl shadow-sm transition-shadow duration-200 lg:hover:shadow-md min-h-0">
           <CardHeader>
             <CardTitle className="text-[#111827] font-semibold">Monthly Project Creation</CardTitle>
@@ -167,7 +229,6 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
 
-        {/* Recent Activity */}
         <div className="grid min-w-0 gap-4 sm:gap-6 lg:grid-cols-2">
           <Card className="bg-white border border-[#E5E7EB] rounded-2xl shadow-sm transition-shadow duration-200 lg:hover:shadow-md min-h-0">
             <CardHeader>
@@ -175,22 +236,21 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {[
-                  { investor: "John Investor", project: "Luxury Apartments", amount: "₹12,000", time: "2 hours ago" },
-                  { investor: "Sarah Smith", project: "Green Valley Villas", amount: "₹8,500", time: "5 hours ago" },
-                  { investor: "Mike Johnson", project: "Commercial Plaza", amount: "₹15,000", time: "1 day ago" },
-                ].map((item, index) => (
+                {dashboard.recentInvestments.map((item, index) => (
                   <div key={index} className="flex items-center justify-between border-b border-[#E5E7EB] pb-3 last:border-0 last:pb-0">
                     <div>
                       <p className="font-medium text-[#111827]">{item.investor}</p>
                       <p className="text-sm text-[#6B7280]">{item.project}</p>
                     </div>
                     <div className="text-right">
-                      <p className="font-semibold text-[#16A34A]">{item.amount}</p>
+                      <p className="font-semibold text-[#16A34A]">{formatINR(Number(item.amount ?? 0))}</p>
                       <p className="text-xs text-[#6B7280]">{item.time}</p>
                     </div>
                   </div>
                 ))}
+                {!loading && dashboard.recentInvestments.length === 0 && (
+                  <p className="text-sm text-[#6B7280]">No recent investments found.</p>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -201,11 +261,7 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {[
-                  { type: "Builder", name: "New Construction Co.", item: "Registration", time: "1 hour ago" },
-                  { type: "Project", name: "Tech Park Phase 2", item: "Project Approval", time: "3 hours ago" },
-                  { type: "Document", name: "Building Permit", item: "Document Verification", time: "1 day ago" },
-                ].map((item, index) => (
+                {dashboard.pendingApprovals.map((item, index) => (
                   <div key={index} className="flex items-center justify-between border-b border-[#E5E7EB] pb-3 last:border-0 last:pb-0">
                     <div>
                       <p className="font-medium text-[#111827]">{item.name}</p>
@@ -217,6 +273,9 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                 ))}
+                {!loading && dashboard.pendingApprovals.length === 0 && (
+                  <p className="text-sm text-[#6B7280]">No pending approvals.</p>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -225,5 +284,3 @@ export default function AdminDashboard() {
     </DashboardLayout>
   );
 }
-
-
